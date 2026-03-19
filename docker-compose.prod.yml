@@ -1,12 +1,11 @@
 # docker-compose.prod.yml
-# SOLUÇÃO DEFINITIVA (Sincronização de Registro + Resiliência DNS)
-# Corrigido o nome da imagem para o real do repositório: df-remuneration-collector
+# SOLUÇÃO DEFINITIVA (Pivô para IP Estático / Rede Determinística)
+# Esta configuração ignora completamente o DNS do Docker e usa IPs internos fixos.
 
 services:
   db-remune:
     image: postgres:16-alpine
     container_name: db-remune
-    hostname: db-remune
     environment:
       POSTGRES_USER: 'remunedata_admin'
       POSTGRES_PASSWORD: 'pg_prod_9XkL2mP5nR8q'
@@ -19,32 +18,39 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      remune_stack_net:
+        ipv4_address: 172.28.0.10 # IP Estático para o Banco
 
-  redis:
+  redis-remune:
     image: redis:7-alpine
     container_name: redis-remune
-    hostname: redis-remune
     command: redis-server --requirepass redis_prod_7vBc4zY1wS6a
     restart: unless-stopped
     volumes:
       - redis_data_v2:/data
+    networks:
+      remune_stack_net:
+        ipv4_address: 172.28.0.20 # IP Estático para o Redis
 
   app:
-    # A imagem correta do seu GitHub é df-remuneration-collector
     image: ghcr.io/hericlessssss/remunedata-api:latest
     container_name: app-remune
     depends_on:
       db-remune:
         condition: service_healthy
     environment:
-      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
-      DATABASE_URL_SYNC: 'postgresql+psycopg2://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
-      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@redis-remune:6379/0'
+      # USANDO IPs DIRETAMENTE (Tchau DNS instável!)
+      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
+      DATABASE_URL_SYNC: 'postgresql+psycopg2://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
+      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@172.28.0.20:6379/0'
       APP_ENV: 'production'
       CORS_ORIGINS: '["https://remunedata.com.br", "https://www.remunedata.com.br"]'
       LOG_LEVEL: 'INFO'
-      DB_HOST: 'db-remune'
+      DB_HOST: '172.28.0.10' # O Entrypoint vai esperar por este IP
     restart: unless-stopped
+    networks:
+      - remune_stack_net
 
   worker:
     image: ghcr.io/hericlessssss/remunedata-api:latest
@@ -54,12 +60,14 @@ services:
       db-remune:
         condition: service_healthy
     environment:
-      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
-      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@redis-remune:6379/0'
+      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
+      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@172.28.0.20:6379/0'
       APP_ENV: 'production'
       LOG_LEVEL: 'INFO'
-      DB_HOST: 'db-remune'
+      DB_HOST: '172.28.0.10'
     restart: unless-stopped
+    networks:
+      - remune_stack_net
 
   scheduler:
     image: ghcr.io/hericlessssss/remunedata-api:latest
@@ -69,13 +77,22 @@ services:
       db-remune:
         condition: service_healthy
     environment:
-      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
-      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@redis-remune:6379/0'
+      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
+      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@172.28.0.20:6379/0'
       APP_ENV: 'production'
       LOG_LEVEL: 'INFO'
-      DB_HOST: 'db-remune'
+      DB_HOST: '172.28.0.10'
     restart: unless-stopped
+    networks:
+      - remune_stack_net
 
 volumes:
   postgres_data_v3: {}
   redis_data_v2: {}
+
+networks:
+  remune_stack_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
