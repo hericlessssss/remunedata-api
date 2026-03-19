@@ -66,6 +66,12 @@ class Settings(BaseSettings):
         le=120,
     )
 
+    # ── CORS ───────────────────────────────────────────────────────────────────
+    cors_origins: list[str] = Field(
+        default=["*"],
+        description="Lista de origens permitidas para CORS (ex: ['https://remunedata.com.br'])",
+    )
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

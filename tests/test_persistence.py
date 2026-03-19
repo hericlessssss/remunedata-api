@@ -17,18 +17,18 @@ async def test_model_instantiation():
     annual = ExecutionAnnual(ano_exercicio=2025, status="success")
     assert annual.ano_exercicio == 2025
     assert annual.status == "success"
-    
+
     monthly = ExecutionMonthly(mes_referencia="01", status="running")
     assert monthly.mes_referencia == "01"
     assert monthly.status == "running"
-    
+
     remuneration = RemunerationCollected(
         ano_exercicio=2025,
         mes_referencia="01",
         codigo_identificacao="ID123",
         codigo_matricula="MAT123",
         nome_servidor="TESTE",
-        raw_payload_json="{}"
+        raw_payload_json="{}",
     )
     assert remuneration.codigo_identificacao == "ID123"
     assert remuneration.nome_servidor == "TESTE"
@@ -37,7 +37,7 @@ async def test_model_instantiation():
 @pytest.mark.asyncio
 async def test_database_connection():
     """
-    Teste de integração básico: verifica se consegue conectar ao banco 
+    Teste de integração básico: verifica se consegue conectar ao banco
     e executar uma query simples.
     """
     async with async_session_maker() as session:
@@ -57,12 +57,12 @@ async def test_create_and_retrieve_execution(db_session: AsyncSession):
     db_session.add(new_exec)
     await db_session.commit()
     await db_session.refresh(new_exec)
-    
+
     assert new_exec.id is not None
-    
+
     # Recupera do banco
     stmt = select(ExecutionAnnual).where(ExecutionAnnual.id == new_exec.id)
     result = await db_session.execute(stmt)
     retrieved = result.scalar_one()
-    
+
     assert retrieved.status == "completed"

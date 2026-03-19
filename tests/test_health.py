@@ -8,7 +8,6 @@ TDD:
 - Erro: endpoint não deve aceitar método POST
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -34,7 +33,7 @@ def test_health_returns_env_field():
     response = client.get("/health")
     data = response.json()
     assert "env" in data
-    assert data["env"] in ("development", "staging", "production")
+    assert data["env"] in ("development", "staging", "production", "testing")
 
 
 def test_health_post_not_allowed():

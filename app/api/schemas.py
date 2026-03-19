@@ -4,7 +4,8 @@ Modelos Pydantic para validação e serialização de dados da API.
 """
 
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -23,6 +24,7 @@ class ExecutionMonthlyRead(BaseModel):
 
 class ExecutionAnnualRead(BaseModel):
     """Schema para listagem (sem carregar meses)."""
+
     id: int
     ano_exercicio: int
     status: str
@@ -33,12 +35,13 @@ class ExecutionAnnualRead(BaseModel):
     total_paginas_consumidas: int
     total_registros_coletados: int
     error_message: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class ExecutionAnnualDetail(ExecutionAnnualRead):
     """Schema para detalhe (inclui meses)."""
+
     monthly_executions: List[ExecutionMonthlyRead]
 
 
