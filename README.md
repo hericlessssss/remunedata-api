@@ -10,7 +10,9 @@
 - [Objetivo](#objetivo)
 - [Stack](#stack)
 - [Pré-requisitos](#pré-requisitos)
+- [Makefile (Atalhos)](#makefile-atalhos)
 - [Instalação e Configuração](#instalação-e-configuração)
+- [Como Testar (Manual)](#como-testar-manual)
 - [Como subir com Docker Compose](#como-subir-com-docker-compose)
 - [Como rodar sem Docker](#como-rodar-sem-docker)
 - [Como executar migrations](#como-executar-migrations)
@@ -34,8 +36,8 @@ A coleta é feita por competência mensal (`anoExercicio` + `mesReferencia`) usa
 - Coletar dados de remuneração paginados da API pública do DF
 - Persistir os dados em PostgreSQL com modelo estruturado e rastreável
 - Expor consultas via API REST (FastAPI)
-- Permitir exportação em CSV/XLSX (futuro)
-- Suportar execução via worker assíncrono (Celery + Redis) e agendamento (futuro)
+- Permitir exportação em CSV/XLSX
+- Suportar execução via worker assíncrono (Celery + Redis) e agendamento (Celery Beat)
 
 ---
 
@@ -47,7 +49,7 @@ A coleta é feita por competência mensal (`anoExercicio` + `mesReferencia`) usa
 - **SQLAlchemy 2.x** (async) — ORM
 - **Alembic** — migrations
 - **Redis 7** — cache e fila
-- **Celery** — worker assíncrono (futuro)
+- **Celery** — worker assíncrono e agendamento
 - **httpx** — cliente HTTP para a API do Portal
 - **Pydantic v2** — validação e configuração
 - **Docker** + **Docker Compose** — ambiente padronizado
@@ -67,6 +69,47 @@ A coleta é feita por competência mensal (`anoExercicio` + `mesReferencia`) usa
 - PostgreSQL 16 rodando localmente
 - Redis 7 rodando localmente
 - Git
+
+## Makefile (Atalhos)
+
+Para facilitar o dia a dia, incluí um `Makefile` com os comandos mais comuns.
+
+### Instalação do `make` por Sistema Operacional:
+
+#### **Windows (Recomendado)**
+Se você ainda não tem o `make` instalado, abra o PowerShell como **Administrador** e execute:
+```powershell
+winget install GnuWin32.Make
+```
+Após instalar, execute o comando abaixo (também no PowerShell) para adicionar o `make` ao seu PATH permanentemente:
+```powershell
+$makePath = "C:\Program Files (x86)\GnuWin32\bin"
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$makePath", "User")
+```
+> **Nota:** Feche e abra o seu terminal (e o VS Code) para que a alteração tenha efeito.
+
+#### **macOS**
+```bash
+brew install make
+```
+
+#### **Linux (Ubuntu/Debian)**
+```bash
+sudo apt update && sudo apt install make
+```
+
+### Comandos Disponíveis:
+
+| Comando | Descrição |
+|---|---|
+| `make up` | Sobe todos os serviços via Docker (app, worker, scheduler, db, redis) |
+| `make down` | Para e remove os containers |
+| `make build` | Reconstrói as imagens Docker |
+| `make test` | Executa todos os testes automatizados |
+| `make migrate` | Aplica as migrations do banco de dados |
+| `make logs` | Acompanha os logs de todos os serviços |
+| `make status` | Verifica o status dos serviços |
+| `make clean` | **Reseta o ambiente** (apaga containers e volumes de dados) |
 
 ---
 
@@ -104,6 +147,14 @@ DATABASE_URL_SYNC=postgresql+psycopg2://postgres:postgres@postgres:5432/df_remun
 ```
 
 > ⚠️ **Atenção:** O arquivo `.env` **nunca deve ser commitado**. Está no `.gitignore`.
+
+---
+
+## Como Testar (Manual)
+
+Se você deseja validar as funcionalidades (coleta, busca e exportação) passo a passo, consulte o nosso:
+
+👉 **[Guia de Testes Direto ao Ponto (TESTING.md)](./TESTING.md)**
 
 ---
 
@@ -155,8 +206,16 @@ df_remuneration_redis      running (healthy)
 ### Acessar a aplicação
 
 - **Health check:** `http://localhost:8000/health`
-- **Swagger UI:** `http://localhost:8000/docs`
-- **ReDoc:** `http://localhost:8000/redoc`
+- **Docs:** `http://localhost:8000/docs`
+
+### Serviços em Execução
+
+O projeto sobe 5 serviços principais:
+1. **`app`**: API FastAPI (Porta 8000)
+2. **`worker`**: Processamento de coletas em background
+3. **`scheduler`**: Agendamento de coletas periódicas (Celery Beat)
+4. **`postgres`**: Banco de dados (Porta 5432)
+5. **`redis`**: Broker de mensagens para o Celery
 
 ---
 
@@ -295,10 +354,12 @@ A cobertura mínima exigida é **80%** (configurada em `pyproject.toml`).
 | Método | URL | Descrição |
 |---|---|---|
 | GET | `/health` | Verifica se a aplicação está viva |
-| GET | `/docs` | Swagger UI (documentação interativa) |
-| GET | `/redoc` | ReDoc (documentação alternativa) |
-
-> Mais endpoints serão adicionados nas próximas etapas.
+| GET | `/api/v1/executions/` | Lista todas as execuções anuais |
+| POST | `/api/v1/executions/` | Dispara uma nova coleta para um ano específico |
+| GET | `/api/v1/executions/{id}` | Detalhes de uma execução e seus meses |
+| GET | `/api/v1/executions/{id}/export` | Exporta dados da execução (query `format=csv` ou `xlsx`) |
+| GET | `/api/v1/remuneration/` | Busca paginada de remunerações por nome |
+| GET | `/docs` | Documentação interativa (Swagger) |
 
 ---
 
