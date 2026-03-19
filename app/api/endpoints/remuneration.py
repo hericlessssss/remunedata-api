@@ -16,10 +16,12 @@ router = APIRouter()
 async def search_remuneration(
     nome: Optional[str] = Query(None, description="Parte do nome do servidor"),
     cpf: Optional[str] = Query(None, description="CPF do servidor (exato)"),
+    cargo: Optional[str] = Query(None, description="Parte do cargo do servidor"),
+    orgao: Optional[str] = Query(None, description="Parte do nome do órgão"),
     ano: Optional[int] = Query(None),
     mes: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
+    size: int = Query(25, ge=1, le=200),
     repo: RemunerationRepository = Depends(get_remuneration_repository)
 ):
     """Busca registros de remuneração com filtros e paginação."""
@@ -27,6 +29,8 @@ async def search_remuneration(
     items, total = await repo.search(
         nome=nome,
         cpf=cpf,
+        cargo=cargo,
+        orgao=orgao,
         ano=ano,
         mes=mes,
         limit=size,
@@ -42,3 +46,12 @@ async def search_remuneration(
         "size": size,
         "pages": pages
     }
+
+
+@router.get("/summary")
+async def get_summary(
+    ano: Optional[int] = Query(None),
+    repo: RemunerationRepository = Depends(get_remuneration_repository)
+):
+    """Retorna dados agregados para o dashboard."""
+    return await repo.get_summary(ano=ano)

@@ -27,8 +27,8 @@ celery_app.conf.update(
 from celery.schedules import crontab
 
 celery_app.conf.beat_schedule = {
-    "sync-recent-years-weekly": {
-        "task": "sync_recent_years_task",
-        "schedule": crontab(hour=3, minute=0, day_of_week=1), # Segunda às 03:00
+    "sync-recent-years-daily": {
+        "task": "app.workers.tasks.sync_recent_years_task",
+        "schedule": crontab(hour=3, minute=0), # Diário às 03:00 AM
     },
 }

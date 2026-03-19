@@ -76,8 +76,11 @@ async def export_execution(
     if not execution:
         raise HTTPException(status_code=404, detail="Execução não encontrada")
     
-    # 2. Buscar todos os registros relacionados
-    records = await remu_repo.get_all_by_execution(id)
+    # 2. Buscar dados da execução com limites conforme requisito PDF
+    # XLSX: até 1.000 linhas, CSV: até 5.000 linhas
+    limit = 1000 if format == "xlsx" else 5000
+    
+    records = await remu_repo.get_all_by_execution(execution.id, limit=limit)
     if not records:
         raise HTTPException(status_code=404, detail="Nenhum registro de remuneração encontrado para esta execução")
 

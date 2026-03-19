@@ -16,8 +16,13 @@ app = FastAPI(
     version="0.1.0"
 )
 
+from fastapi.staticfiles import StaticFiles
+
 # Registrar Rotas
 app.include_router(api_router, prefix="/api/v1")
+
+# Servir Dashboard Estático
+app.mount("/dashboard", StaticFiles(directory="app/static", html=True), name="static")
 
 
 @app.get("/health")

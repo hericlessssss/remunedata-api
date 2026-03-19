@@ -83,7 +83,9 @@ class RemunerationRepository:
         cpf: Optional[str] = None, 
         ano: Optional[int] = None, 
         mes: Optional[str] = None,
-        limit: int = 50,
+        cargo: Optional[str] = None,
+        orgao: Optional[str] = None,
+        limit: int = 25,
         offset: int = 0
     ) -> tuple[list[RemunerationCollected], int]:
         """Busca paginada de registros com filtros."""
@@ -103,6 +105,12 @@ class RemunerationRepository:
         if mes:
             stmt = stmt.where(RemunerationCollected.mes_referencia == mes)
             count_stmt = count_stmt.where(RemunerationCollected.mes_referencia == mes)
+        if cargo:
+            stmt = stmt.where(RemunerationCollected.cargo.ilike(f"%{cargo}%"))
+            count_stmt = count_stmt.where(RemunerationCollected.cargo.ilike(f"%{cargo}%"))
+        if orgao:
+            stmt = stmt.where(RemunerationCollected.nome_orgao.ilike(f"%{orgao}%"))
+            count_stmt = count_stmt.where(RemunerationCollected.nome_orgao.ilike(f"%{orgao}%"))
             
         # Count total
         total_result = await self.session.execute(count_stmt)
@@ -124,12 +132,62 @@ class RemunerationRepository:
         # Following our current MonthlyCollector logic, we commit per page.
         await self.session.commit()
 
-    async def get_all_by_execution(self, execution_id: int) -> list[RemunerationCollected]:
-        """Busca todos os registros de remuneração de uma execução anual específica."""
+    async def get_all_by_execution(self, execution_id: int, limit: Optional[int] = None) -> list[RemunerationCollected]:
+        """Recupera registros de uma execução com ordenação e limite opcional."""
         stmt = (
             select(RemunerationCollected)
             .where(RemunerationCollected.execution_id == execution_id)
-            .order_by(RemunerationCollected.mes_referencia.asc(), RemunerationCollected.nome_servidor.asc())
+            .order_by(
+                RemunerationCollected.mes_referencia,
+                RemunerationCollected.nome_servidor
+            )
         )
+        if limit:
+            stmt = stmt.limit(limit)
+            
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_summary(self, ano: Optional[int] = None) -> dict:
+        """Calcula agregados para o dashboard."""
+        from sqlalchemy import func
+        
+        # Filtro opcional por ano
+        filter_stmt = []
+        if ano:
+            filter_stmt.append(RemunerationCollected.ano_exercicio == ano)
+
+        # 1. Totais Gerais
+        stmt_totals = select(
+            func.count(RemunerationCollected.id).label("total_count"),
+            func.avg(RemunerationCollected.valor_bruto).label("avg_bruto"),
+            func.sum(RemunerationCollected.valor_bruto).label("sum_bruto")
+        )
+        if filter_stmt:
+            stmt_totals = stmt_totals.where(*filter_stmt)
+        
+        res_totals = await self.session.execute(stmt_totals)
+        totals = res_totals.mappings().one()
+
+        # 2. Top 5 Órgãos por quantidade
+        stmt_orgaos = (
+            select(
+                RemunerationCollected.nome_orgao,
+                func.count(RemunerationCollected.id).label("count")
+            )
+            .group_by(RemunerationCollected.nome_orgao)
+            .order_by(func.count(RemunerationCollected.id).desc())
+            .limit(5)
+        )
+        if filter_stmt:
+            stmt_orgaos = stmt_orgaos.where(*filter_stmt)
+            
+        res_orgaos = await self.session.execute(stmt_orgaos)
+        top_orgaos = [dict(row._mapping) for row in res_orgaos]
+        
+        return {
+            "total_servidores": totals["total_count"],
+            "media_salarial": float(totals["avg_bruto"] or 0),
+            "total_gasto_bruto": float(totals["sum_bruto"] or 0),
+            "top_orgaos": top_orgaos
+        }
