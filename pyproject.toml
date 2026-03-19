@@ -38,6 +38,7 @@ dev = [
     "black>=24.4.0",
     "isort>=5.13.0",
     "ruff>=0.4.0",
+    "respx>=0.21.0",
 ]
 
 [tool.setuptools.packages.find]
