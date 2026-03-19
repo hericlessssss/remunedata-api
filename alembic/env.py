@@ -25,11 +25,9 @@ database_url_sync = os.getenv("DATABASE_URL_SYNC")
 if database_url_sync:
     config.set_main_option("sqlalchemy.url", database_url_sync)
 
-# target_metadata: apontar para o MetaData dos models quando eles existirem.
-# Por enquanto, mantemos None (sem autogenerate de schemas ainda).
-# Quando os models forem criados em app/persistence/models.py,
-# faremos: from app.persistence.models import Base; target_metadata = Base.metadata
-target_metadata = None
+# target_metadata: apontar para o MetaData dos models para autogenerate.
+from app.persistence.models import Base
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

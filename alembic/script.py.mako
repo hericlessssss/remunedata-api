@@ -1,16 +1,21 @@
-"""Script template para novas migrations Alembic.
-Este arquivo é usado como base ao criar novos scripts com 'alembic revision'.
+"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision}
+Create Date: ${create_date}
+
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
-revision: str = "${revision}"
-down_revision: Union[str, None] = ${down_revision!r}
-branch_labels: Union[str, Sequence[str], None] = ${branch_labels!r}
-depends_on: Union[str, Sequence[str], None] = ${depends_on!r}
+revision: str = ${repr(up_revision)}
+down_revision: Union[str, None] = ${repr(down_revision)}
+branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
+depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
 
 
 def upgrade() -> None:
