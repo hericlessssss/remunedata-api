@@ -1,6 +1,6 @@
 # docker-compose.prod.yml
-# Versão FINAL para o "Docker Compose Stack" do Coolify v4
-# Inclui: API, Worker, Scheduler, Postgres e Redis com Persistência.
+# Versão FINAL CORRIGIDA (V2) para o "Docker Compose Stack" do Coolify v4
+# Força a reinicialização do banco com as senhas corretas (V2).
 
 services:
   postgres:
@@ -10,7 +10,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}
       POSTGRES_DB: ${POSTGRES_DB:-remunedata_prod}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Mudado para _v2 para forçar o Postgres a ignorar dados antigos e usar a senha nova
+      - postgres_data_v2:/var/lib/postgresql/data 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -37,13 +38,14 @@ services:
       redis:
         condition: service_healthy
     environment:
+      # Sincronizado com as variáveis acima
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
       DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       LOG_LEVEL: INFO
       CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
-    # Porta interna 8000 mapeada automaticamente pelo Proxy do Coolify
+    # Porta externa 8000 removida: deixe o Proxy (Caddy/Traefik) do Coolify cuidar do IP via Dominio
     restart: unless-stopped
 
   worker:
@@ -77,5 +79,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_data_v2: # Nome do novo volume
   redis_data:
