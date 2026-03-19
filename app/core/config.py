@@ -78,8 +78,9 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """
     Retorna instância das configurações.
-
-    Em produção, os valores virão de variáveis de ambiente.
-    Em desenvolvimento, do arquivo .env na raiz do projeto.
     """
     return Settings()
+
+
+# Instância global para uso no app
+settings = get_settings()

@@ -56,11 +56,62 @@ class ExecutionRepository:
         # Commit será feito pelo caller ou conforme estratégia de transação
 
 
+    async def list_annual(self, limit: int = 20, offset: int = 0) -> list[ExecutionAnnual]:
+        """Lista as execuções anuais paginadas."""
+        stmt = select(ExecutionAnnual).order_by(ExecutionAnnual.started_at.desc()).limit(limit).offset(offset)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_annual(self, annual_id: int) -> Optional[ExecutionAnnual]:
+        """Busca detalhe de uma execução anual acompanhada dos meses."""
+        # Força carregamento dos meses se necessário ou usa joinedload
+        from sqlalchemy.orm import selectinload
+        stmt = select(ExecutionAnnual).where(ExecutionAnnual.id == annual_id).options(selectinload(ExecutionAnnual.monthly_executions))
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
+
 class RemunerationRepository:
     """Repositório para gerenciar os dados de remuneração coletados."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def search(
+        self, 
+        nome: Optional[str] = None, 
+        cpf: Optional[str] = None, 
+        ano: Optional[int] = None, 
+        mes: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> tuple[list[RemunerationCollected], int]:
+        """Busca paginada de registros com filtros."""
+        from sqlalchemy import func
+        stmt = select(RemunerationCollected)
+        count_stmt = select(func.count()).select_from(RemunerationCollected)
+        
+        if nome:
+            stmt = stmt.where(RemunerationCollected.nome_servidor.ilike(f"%{nome}%"))
+            count_stmt = count_stmt.where(RemunerationCollected.nome_servidor.ilike(f"%{nome}%"))
+        if cpf:
+            stmt = stmt.where(RemunerationCollected.cpf_servidor == cpf)
+            count_stmt = count_stmt.where(RemunerationCollected.cpf_servidor == cpf)
+        if ano:
+            stmt = stmt.where(RemunerationCollected.ano_exercicio == ano)
+            count_stmt = count_stmt.where(RemunerationCollected.ano_exercicio == ano)
+        if mes:
+            stmt = stmt.where(RemunerationCollected.mes_referencia == mes)
+            count_stmt = count_stmt.where(RemunerationCollected.mes_referencia == mes)
+            
+        # Count total
+        total_result = await self.session.execute(count_stmt)
+        total = total_result.scalar_one()
+        
+        # Paginated results
+        stmt = stmt.order_by(RemunerationCollected.nome_servidor).limit(limit).offset(offset)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all()), total
 
     async def save_batch(self, items: list[RemunerationCollected]):
         """Salva uma lista de registros em lote."""
