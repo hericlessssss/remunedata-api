@@ -19,17 +19,17 @@ def set_test_env(monkeypatch):
     """
     monkeypatch.setenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/df_remuneration",
+        "postgresql+asyncpg://postgres:postgres@postgres:5432/df_remuneration",
     )
     monkeypatch.setenv(
         "DATABASE_URL_SYNC",
-        "postgresql+psycopg2://postgres:postgres@localhost:5432/df_remuneration",
+        "postgresql+psycopg2://postgres:postgres@postgres:5432/df_remuneration",
     )
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def db_engine():
     """Cria a engine assíncrona para a duração da sessão de testes."""
     from sqlalchemy.ext.asyncio import create_async_engine

@@ -1,0 +1,42 @@
+{
+  "content": [
+    {
+      "id": 123456,
+      "matricula": "0012345A",
+      "nome": "SERVIDOR TESTE UM",
+      "cpf": "***.123.456-**",
+      "codigoOrgao": "10101",
+      "orgao": "SECRETARIA DE TESTE",
+      "situacaoFuncional": "ATIVO",
+      "cargo": "ANALISTA",
+      "remuneracaoBasica": 10000.0,
+      "beneficios": 500.0,
+      "remuneracaoCargoFuncao": 2000.0,
+      "remuneracaoBruta": 12500.0,
+      "valorLiquido": 9000.0
+    },
+    {
+      "id": 789012,
+      "matricula": "0078901B",
+      "nome": "SERVIDOR TESTE DOIS",
+      "cpf": "***.789.012-**",
+      "codigoOrgao": "20202",
+      "orgao": "CONTROLADORIA DE TESTE",
+      "situacaoFuncional": "APOSENTADO",
+      "cargo": "TECNICO",
+      "remuneracaoBasica": 8000.0,
+      "beneficios": 300.0,
+      "remuneracaoCargoFuncao": 0.0,
+      "remuneracaoBruta": 8300.0,
+      "valorLiquido": 6500.0
+    }
+  ],
+  "last": true,
+  "totalPages": 1,
+  "totalElements": 2,
+  "size": 150,
+  "number": 0,
+  "numberOfElements": 2,
+  "first": true,
+  "empty": false
+}

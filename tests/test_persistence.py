@@ -61,7 +61,7 @@ async def test_create_and_retrieve_execution(db_session: AsyncSession):
     assert new_exec.id is not None
     
     # Recupera do banco
-    stmt = select(ExecutionAnnual).where(ExecutionAnnual.ano_exercicio == 2024)
+    stmt = select(ExecutionAnnual).where(ExecutionAnnual.id == new_exec.id)
     result = await db_session.execute(stmt)
     retrieved = result.scalar_one()
     
