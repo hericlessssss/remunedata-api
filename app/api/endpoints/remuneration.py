@@ -38,9 +38,6 @@ async def search_remuneration(
     return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
 
 
-
-
-
 class SummaryCache:
     data: Optional[dict] = None
     expires_at: datetime = datetime.min

@@ -9,22 +9,24 @@ import pytest
 @pytest.fixture(autouse=True)
 def set_test_env(monkeypatch):
     """
-    Garante variáveis de ambiente mínimas para testes.
-    Aplicada automaticamente a todos os testes (autouse=True).
-
-    Isso evita erros de ValidationError do Settings em testes
-    que não importam config diretamente.
+    Garante variáveis de ambiente básicas para testes se não estiverem definidas.
     """
-    monkeypatch.setenv(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@postgres:5432/df_remuneration",
-    )
-    monkeypatch.setenv(
-        "DATABASE_URL_SYNC",
-        "postgresql+psycopg2://postgres:postgres@postgres:5432/df_remuneration",
-    )
-    monkeypatch.setenv("APP_ENV", "development")
-    monkeypatch.setenv("LOG_LEVEL", "WARNING")
+    import os
+
+    if not os.getenv("DATABASE_URL"):
+        monkeypatch.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://postgres:postgres@localhost:5432/df_remuneration_test",
+        )
+    if not os.getenv("DATABASE_URL_SYNC"):
+        monkeypatch.setenv(
+            "DATABASE_URL_SYNC",
+            "postgresql+psycopg2://postgres:postgres@localhost:5432/df_remuneration_test",
+        )
+    if not os.getenv("APP_ENV"):
+        monkeypatch.setenv("APP_ENV", "testing")
+    if not os.getenv("LOG_LEVEL"):
+        monkeypatch.setenv("LOG_LEVEL", "WARNING")
 
 
 @pytest.fixture(scope="function")
