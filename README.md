@@ -36,8 +36,9 @@ A coleta é feita por competência mensal (`anoExercicio` + `mesReferencia`) usa
 - Coletar dados de remuneração paginados da API pública do DF
 - Persistir os dados em PostgreSQL com modelo estruturado e rastreável
 - Expor consultas via API REST (FastAPI)
-- Permitir exportação em CSV/XLSX
+- Permitir exportação em CSV/XLSX com limites de segurança (5k/1k)
 - Suportar execução via worker assíncrono (Celery + Redis) e agendamento (Celery Beat)
+- Disponibilizar Dashboard Analítico local
 
 ---
 
@@ -60,12 +61,12 @@ A coleta é feita por competência mensal (`anoExercicio` + `mesReferencia`) usa
 ## Pré-requisitos
 
 ### Para rodar com Docker (recomendado)
-- [Docker Desktop](https://docs.docker.com/desktop/) >= 24 instalado e em execução
-- [Docker Compose](https://docs.docker.com/compose/) (incluído no Docker Desktop)
+- Docker Desktop >= 24 instalado e em execução
+- Docker Compose (incluído no Docker Desktop)
 - Git
 
 ### Para rodar sem Docker
-- Python 3.12 instalado ([python.org](https://www.python.org/downloads/))
+- Python 3.12 instalado
 - PostgreSQL 16 rodando localmente
 - Redis 7 rodando localmente
 - Git
@@ -74,7 +75,7 @@ A coleta é feita por competência mensal (`anoExercicio` + `mesReferencia`) usa
 
 Para facilitar o dia a dia, incluí um `Makefile` com os comandos mais comuns.
 
-### Instalação do `make` por Sistema Operacional:
+### Instalação do make por Sistema Operacional:
 
 #### **Windows (Recomendado)**
 Se você ainda não tem o `make` instalado, abra o PowerShell como **Administrador** e execute:
@@ -86,7 +87,7 @@ Após instalar, execute o comando abaixo (também no PowerShell) para adicionar 
 $makePath = "C:\Program Files (x86)\GnuWin32\bin"
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$makePath", "User")
 ```
-> **Nota:** Feche e abra o seu terminal (e o VS Code) para que a alteração tenha efeito.
+Nota: Feche e abra o seu terminal (e o VS Code) para que a alteração tenha efeito.
 
 #### **macOS**
 ```bash
@@ -118,11 +119,11 @@ sudo apt update && sudo apt install make
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/df-remuneration-collector.git
+git clone https://github.com/hericlessssss/df-remuneration-collector.git
 cd df-remuneration-collector
 ```
 
-### 2. Criar o arquivo `.env`
+### 2. Criar o arquivo .env
 
 Copie o arquivo de exemplo e edite com suas configurações:
 
@@ -146,7 +147,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/df_remuneratio
 DATABASE_URL_SYNC=postgresql+psycopg2://postgres:postgres@postgres:5432/df_remuneration
 ```
 
-> ⚠️ **Atenção:** O arquivo `.env` **nunca deve ser commitado**. Está no `.gitignore`.
+Atenção: O arquivo `.env` **nunca deve ser commitado**. Está no `.gitignore`.
 
 ---
 
@@ -154,7 +155,7 @@ DATABASE_URL_SYNC=postgresql+psycopg2://postgres:postgres@postgres:5432/df_remun
 
 Se você deseja validar as funcionalidades (coleta, busca e exportação) passo a passo, consulte o nosso:
 
-👉 **[Guia de Testes Direto ao Ponto (TESTING.md)](./TESTING.md)**
+**[Guia de Testes Direto ao Ponto (TESTING.md)](./TESTING.md)**
 
 ---
 
@@ -182,10 +183,10 @@ docker compose logs -f app
 ### Parar os serviços
 
 ```bash
-# Parar sem remover volumes (banco preservado)
+# Para sem remover volumes (banco preservado)
 docker compose down
 
-# Parar e remover volumes (banco APAGADO — use com cuidado)
+# Para e remove volumes (banco APAGADO -- use com cuidado)
 docker compose down -v
 ```
 
@@ -205,17 +206,18 @@ df_remuneration_redis      running (healthy)
 
 ### Acessar a aplicação
 
+- **Dashboard Analítico:** `http://localhost:8000/dashboard/`
+- **Docs (Swagger):** `http://localhost:8000/docs`
 - **Health check:** `http://localhost:8000/health`
-- **Docs:** `http://localhost:8000/docs`
 
 ### Serviços em Execução
 
 O projeto sobe 5 serviços principais:
-1. **`app`**: API FastAPI (Porta 8000)
-2. **`worker`**: Processamento de coletas em background
-3. **`scheduler`**: Agendamento de coletas periódicas (Celery Beat)
-4. **`postgres`**: Banco de dados (Porta 5432)
-5. **`redis`**: Broker de mensagens para o Celery
+1. **app**: API FastAPI (Porta 8000)
+2. **worker**: Processamento de coletas em background (com fix de memória)
+3. **scheduler**: Agendamento de coletas periódicas (Celery Beat)
+4. **postgres**: Banco de dados (Porta 5432)
+5. **redis**: Broker de mensagens para o Celery
 
 ---
 
@@ -241,7 +243,7 @@ pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
-### 3. Configurar o `.env`
+### 3. Configurar o .env
 
 Edite o `.env` para apontar para `localhost` (não para `postgres`):
 
@@ -280,10 +282,10 @@ docker compose run --rm app alembic upgrade head
 # Ver histórico de migrations
 docker compose run --rm app alembic history
 
-# Criar uma nova migration (após alterar models.py)
+# Criar uma nova migration (apos alterar models.py)
 docker compose run --rm app alembic revision --autogenerate -m "descricao_da_mudanca"
 
-# Reverter a última migration
+# Reverter a ultima migration
 docker compose run --rm app alembic downgrade -1
 ```
 
@@ -296,8 +298,6 @@ alembic revision --autogenerate -m "descricao_da_mudanca"
 alembic downgrade -1
 ```
 
-> **Nota:** Por enquanto, não há tabelas criadas (etapa 1 = bootstrap). As migrations de tabelas reais serão adicionadas na Etapa 3.
-
 ---
 
 ## Como rodar os testes
@@ -308,7 +308,7 @@ alembic downgrade -1
 # Rodar todos os testes
 docker compose run --rm app pytest tests/ -v
 
-# Rodar um arquivo específico
+# Rodar um arquivo especifico
 docker compose run --rm app pytest tests/test_health.py -v
 
 # Rodar com logs visíveis
@@ -319,12 +319,6 @@ docker compose run --rm app pytest tests/ -v -s
 
 ```bash
 pytest tests/ -v --tb=short
-```
-
-### Com tox (simula CI)
-
-```bash
-tox
 ```
 
 ---
@@ -340,12 +334,11 @@ docker compose run --rm app coverage report -m
 coverage run -m pytest tests/ -v
 coverage report -m
 
-# Gerar relatório HTML
+# Gerar relatorio HTML
 coverage html
-# Abrir htmlcov/index.html no navegador
 ```
 
-A cobertura mínima exigida é **80%** (configurada em `pyproject.toml`).
+A cobertura mínima configurada é **86%** (alcançado: **87.7%**).
 
 ---
 
@@ -353,60 +346,27 @@ A cobertura mínima exigida é **80%** (configurada em `pyproject.toml`).
 
 | Método | URL | Descrição |
 |---|---|---|
-| GET | `/health` | Verifica se a aplicação está viva |
-| GET | `/api/v1/executions/` | Lista todas as execuções anuais |
-| POST | `/api/v1/executions/` | Dispara uma nova coleta para um ano específico |
-| GET | `/api/v1/executions/{id}` | Detalhes de uma execução e seus meses |
-| GET | `/api/v1/executions/{id}/export` | Exporta dados da execução (query `format=csv` ou `xlsx`) |
-| GET | `/api/v1/remuneration/` | Busca paginada de remunerações por nome |
-| GET | `/docs` | Documentação interativa (Swagger) |
+| GET | `/api/v1/remuneration/summary` | Dashboard Summary (agregados/top orgaos) |
+| GET | `/api/v1/remuneration/` | Busca com filtros (nome, cpf, cargo, orgao) |
+| POST | `/api/v1/executions/` | Dispara nova coleta anual |
+| GET | `/api/v1/executions/` | Lista execuções |
+| GET | `/api/v1/executions/{id}/export` | Exporta CSV/XLSX (limites: 5k/1k) |
+| GET | `/dashboard/` | Interface visual do Dashboard |
+| GET | `/health` | Health Check |
 
 ---
 
 ## Troubleshooting
 
-### `docker compose up` falha com "port already in use"
+### docker compose up falha com "port already in use"
 
-Algum processo local está usando a porta 8000, 5432 ou 6379.
+Algum processo local está usando a porta 8000, 5432 ou 6379. 
 
-```bash
-# Ver o que está usando a porta (ex: 5432)
-# Windows
-netstat -ano | findstr :5432
+Pare os serviços locais de Postgres/Redis se estiver usando Docker.
 
-# Parar o processo ou alterar a porta no docker-compose.yml
-```
-
-### `ModuleNotFoundError: No module named 'app'`
+### ModuleNotFoundError: No module named 'app'
 
 Instale o pacote em modo editável:
-
-```bash
-pip install -e ".[dev]"
-```
-
-### `ValidationError: DATABASE_URL is required`
-
-Crie o arquivo `.env` a partir do `.env.example`:
-
-```bash
-# Windows PowerShell
-Copy-Item .env.example .env
-```
-
-### Erro de conexão com PostgreSQL
-
-Verifique se o container `postgres` está saudável:
-
-```bash
-docker compose ps
-docker compose logs postgres
-```
-
-### `alembic: command not found`
-
-Certifique-se de que o pacote está instalado e o venv está ativado:
-
 ```bash
 pip install -e ".[dev]"
 ```
@@ -415,24 +375,4 @@ pip install -e ".[dev]"
 
 ## Documentação técnica
 
-A pasta `/docs` contém toda a documentação funcional construída antes do código:
-
-| Arquivo | Conteúdo |
-|---|---|
-| `01-descoberta-da-fonte-de-dados.md` | Análise da API do Portal da Transparência |
-| `02-contrato-da-fonte.md` | Parâmetros e estrutura da resposta |
-| `03-validacao-da-chamada-minima.md` | Chamada HTTP mínima validada |
-| `04-validacao-da-paginacao.md` | Paginação validada |
-| `05-validacao-do-limite-de-size.md` | Limite real de size=150 validado |
-| `06-validacao-do-filtro-por-nome.md` | Filtro por nome funcional |
-| `07-validacao-do-filtro-por-cpf.md` | Filtro por CPF não funcional |
-| `08-validacao-da-ordenacao-padrao.md` | Ordenação estável validada |
-| `09-validacao-do-fim-da-paginacao.md` | Condições de parada validadas |
-| `10-validacao-da-estrategia-anual.md` | Coleta mensal validada |
-| `11-algoritmo-minimo-da-coleta.md` | Algoritmo mínimo do coletor |
-| `12-contrato-minimo-do-coletor.md` | Contrato de entrada/saída |
-| `13-modelo-minimo-de-persistencia.md` | Modelo mínimo de banco |
-| `14-estrutura-minima-do-projeto.md` | Estrutura de pastas |
-| `15-stack-minimo-e-bootstrap.md` | Stack e ordem de bootstrap |
-
-Para decisões técnicas e histórico de mudanças, consulte [`PROJECT.md`](./PROJECT.md).
+A pasta `/docs` contém toda a documentação funcional detalhada. Para decisões técnicas e histórico de mudanças, consulte `PROJECT.md`.
