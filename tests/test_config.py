@@ -1,5 +1,5 @@
-import pytest
 from app.core.config import Settings
+
 
 def test_cors_origins_parsing():
     # Teste padrão (aberto)
@@ -8,11 +8,8 @@ def test_cors_origins_parsing():
 
     # Teste com lista real (simulando env var)
     # Pydantic Settings trata strings de listas JSON automaticamente
-    import json
     origins = ["https://remunedata.com.br", "http://localhost:3000"]
     settings = Settings(
-        database_url="sqlite+aiosqlite://", 
-        database_url_sync="sqlite://",
-        cors_origins=origins
+        database_url="sqlite+aiosqlite://", database_url_sync="sqlite://", cors_origins=origins
     )
     assert settings.cors_origins == origins

@@ -8,7 +8,6 @@ TDD:
 - Erro: endpoint não deve aceitar método POST
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app

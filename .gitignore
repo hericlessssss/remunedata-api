@@ -48,3 +48,6 @@ desktop.ini
 *.csv
 *.xlsx
 PROJECT.md
+cicd.md
+coolify-setup.md
+secrets_ready_to_use.md

@@ -4,6 +4,7 @@ Centralização das rotas da API.
 """
 
 from fastapi import APIRouter
+
 from app.api.endpoints import executions, remuneration
 
 api_router = APIRouter()

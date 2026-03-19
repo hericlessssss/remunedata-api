@@ -7,6 +7,7 @@ Usa httpx para requisições assíncronas.
 from typing import Any, Dict, Optional
 
 import httpx
+
 from app.core.config import get_settings
 from app.core.logging import get_logger, log_extra
 
@@ -17,7 +18,7 @@ logger = get_logger(__name__)
 class TransparenciaClient:
     """
     Cliente de integração com a API de remuneração do DF.
-    
+
     A API base é: https://www.transparencia.df.gov.br/api/remuneracao
     """
 
@@ -73,14 +74,13 @@ class TransparenciaClient:
         }
 
         logger.debug(
-            "Consultando API Transparência",
-            extra=log_extra(ano=ano, mes=mes, page=page, size=size)
+            "Consultando API Transparência", extra=log_extra(ano=ano, mes=mes, page=page, size=size)
         )
 
         async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
             response = await client.get(self.base_url, params=params)
-            
+
             # Lança exceção para status 4xx/5xx
             response.raise_for_status()
-            
+
             return response.json()

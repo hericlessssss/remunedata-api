@@ -4,8 +4,10 @@ Implementação do padrão Repository para abstrair o SQLAlchemy.
 """
 
 from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.persistence.models import ExecutionAnnual, ExecutionMonthly, RemunerationCollected
 
 
@@ -17,25 +19,25 @@ class ExecutionRepository:
 
     async def get_or_create_annual(self, ano: int) -> ExecutionAnnual:
         """Busca uma execução anual para o ano informado ou cria uma nova."""
-        stmt = select(ExecutionAnnual).where(ExecutionAnnual.ano_exercicio == ano).order_by(ExecutionAnnual.started_at.desc())
+        stmt = (
+            select(ExecutionAnnual)
+            .where(ExecutionAnnual.ano_exercicio == ano)
+            .order_by(ExecutionAnnual.started_at.desc())
+        )
         result = await self.session.execute(stmt)
         record = result.scalars().first()
-        
+
         if not record:
             record = ExecutionAnnual(ano_exercicio=ano, status="pending")
             self.session.add(record)
             await self.session.commit()
             await self.session.refresh(record)
-            
+
         return record
 
     async def create_monthly(self, annual_id: int, mes: str) -> ExecutionMonthly:
         """Cria um registro de execução mensal vinculado a uma anual."""
-        monthly = ExecutionMonthly(
-            execution_id=annual_id,
-            mes_referencia=mes,
-            status="running"
-        )
+        monthly = ExecutionMonthly(execution_id=annual_id, mes_referencia=mes, status="running")
         self.session.add(monthly)
         await self.session.commit()
         await self.session.refresh(monthly)
@@ -49,16 +51,21 @@ class ExecutionRepository:
             .values(
                 total_paginas_consumidas=ExecutionAnnual.total_paginas_consumidas + pages,
                 total_registros_coletados=ExecutionAnnual.total_registros_coletados + elements,
-                total_meses_processados=ExecutionAnnual.total_meses_processados + (1 if pages > 0 else 0)
+                total_meses_processados=ExecutionAnnual.total_meses_processados
+                + (1 if pages > 0 else 0),
             )
         )
         await self.session.execute(stmt)
         # Commit será feito pelo caller ou conforme estratégia de transação
 
-
     async def list_annual(self, limit: int = 20, offset: int = 0) -> list[ExecutionAnnual]:
         """Lista as execuções anuais paginadas."""
-        stmt = select(ExecutionAnnual).order_by(ExecutionAnnual.started_at.desc()).limit(limit).offset(offset)
+        stmt = (
+            select(ExecutionAnnual)
+            .order_by(ExecutionAnnual.started_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -66,7 +73,12 @@ class ExecutionRepository:
         """Busca detalhe de uma execução anual acompanhada dos meses."""
         # Força carregamento dos meses se necessário ou usa joinedload
         from sqlalchemy.orm import selectinload
-        stmt = select(ExecutionAnnual).where(ExecutionAnnual.id == annual_id).options(selectinload(ExecutionAnnual.monthly_executions))
+
+        stmt = (
+            select(ExecutionAnnual)
+            .where(ExecutionAnnual.id == annual_id)
+            .options(selectinload(ExecutionAnnual.monthly_executions))
+        )
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
@@ -78,21 +90,22 @@ class RemunerationRepository:
         self.session = session
 
     async def search(
-        self, 
-        nome: Optional[str] = None, 
-        cpf: Optional[str] = None, 
-        ano: Optional[int] = None, 
+        self,
+        nome: Optional[str] = None,
+        cpf: Optional[str] = None,
+        ano: Optional[int] = None,
         mes: Optional[str] = None,
         cargo: Optional[str] = None,
         orgao: Optional[str] = None,
         limit: int = 25,
-        offset: int = 0
+        offset: int = 0,
     ) -> tuple[list[RemunerationCollected], int]:
         """Busca paginada de registros com filtros."""
         from sqlalchemy import func
+
         stmt = select(RemunerationCollected)
         count_stmt = select(func.count()).select_from(RemunerationCollected)
-        
+
         if nome:
             stmt = stmt.where(RemunerationCollected.nome_servidor.ilike(f"%{nome}%"))
             count_stmt = count_stmt.where(RemunerationCollected.nome_servidor.ilike(f"%{nome}%"))
@@ -111,11 +124,11 @@ class RemunerationRepository:
         if orgao:
             stmt = stmt.where(RemunerationCollected.nome_orgao.ilike(f"%{orgao}%"))
             count_stmt = count_stmt.where(RemunerationCollected.nome_orgao.ilike(f"%{orgao}%"))
-            
+
         # Count total
         total_result = await self.session.execute(count_stmt)
         total = total_result.scalar_one()
-        
+
         # Paginated results
         stmt = stmt.order_by(RemunerationCollected.nome_servidor).limit(limit).offset(offset)
         result = await self.session.execute(stmt)
@@ -125,33 +138,32 @@ class RemunerationRepository:
         """Salva uma lista de registros em lote."""
         if not items:
             return
-            
+
         self.session.add_all(items)
         # Session commit is deferred to the service layer coordination
         # or done here if we want immediate persistence per page.
         # Following our current MonthlyCollector logic, we commit per page.
         await self.session.commit()
 
-    async def get_all_by_execution(self, execution_id: int, limit: Optional[int] = None) -> list[RemunerationCollected]:
+    async def get_all_by_execution(
+        self, execution_id: int, limit: Optional[int] = None
+    ) -> list[RemunerationCollected]:
         """Recupera registros de uma execução com ordenação e limite opcional."""
         stmt = (
             select(RemunerationCollected)
             .where(RemunerationCollected.execution_id == execution_id)
-            .order_by(
-                RemunerationCollected.mes_referencia,
-                RemunerationCollected.nome_servidor
-            )
+            .order_by(RemunerationCollected.mes_referencia, RemunerationCollected.nome_servidor)
         )
         if limit:
             stmt = stmt.limit(limit)
-            
+
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_summary(self, ano: Optional[int] = None) -> dict:
         """Calcula agregados para o dashboard."""
         from sqlalchemy import func
-        
+
         # Filtro opcional por ano
         filter_stmt = []
         if ano:
@@ -161,11 +173,11 @@ class RemunerationRepository:
         stmt_totals = select(
             func.count(RemunerationCollected.id).label("total_count"),
             func.avg(RemunerationCollected.valor_bruto).label("avg_bruto"),
-            func.sum(RemunerationCollected.valor_bruto).label("sum_bruto")
+            func.sum(RemunerationCollected.valor_bruto).label("sum_bruto"),
         )
         if filter_stmt:
             stmt_totals = stmt_totals.where(*filter_stmt)
-        
+
         res_totals = await self.session.execute(stmt_totals)
         totals = res_totals.mappings().one()
 
@@ -173,7 +185,7 @@ class RemunerationRepository:
         stmt_orgaos = (
             select(
                 RemunerationCollected.nome_orgao,
-                func.count(RemunerationCollected.id).label("count")
+                func.count(RemunerationCollected.id).label("count"),
             )
             .group_by(RemunerationCollected.nome_orgao)
             .order_by(func.count(RemunerationCollected.id).desc())
@@ -181,13 +193,13 @@ class RemunerationRepository:
         )
         if filter_stmt:
             stmt_orgaos = stmt_orgaos.where(*filter_stmt)
-            
+
         res_orgaos = await self.session.execute(stmt_orgaos)
         top_orgaos = [dict(row._mapping) for row in res_orgaos]
-        
+
         return {
             "total_servidores": totals["total_count"],
             "media_salarial": float(totals["avg_bruto"] or 0),
             "total_gasto_bruto": float(totals["sum_bruto"] or 0),
-            "top_orgaos": top_orgaos
+            "top_orgaos": top_orgaos,
         }
