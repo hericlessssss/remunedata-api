@@ -375,4 +375,15 @@ pip install -e ".[dev]"
 
 ## Documentação técnica
 
-A pasta `/docs` contém toda a documentação funcional detalhada. Para decisões técnicas e histórico de mudanças, consulte `PROJECT.md`.
+A pasta `/docs` contém toda a documentação funcional detalhada. Para decisões técnicas e histórico de mudanças, consulte [`PROJECT.md`](./PROJECT.md).
+
+---
+
+## CI/CD e Deploy
+
+Este projeto está preparado para deploy automatizado via GitHub Actions e Coolify.
+
+- **Fluxo de CI/CD:** documentado em [`docs/cicd.md`](./docs/cicd.md).
+- **Configuração Coolify:** documentado em [`docs/coolify-setup.md`](./docs/coolify-setup.md).
+- **Estratégia de Ambientes:** documentado em [`docs/environment-strategy.md`](./docs/environment-strategy.md).
+```
