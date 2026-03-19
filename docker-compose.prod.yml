@@ -1,83 +1,80 @@
 # docker-compose.prod.yml
-# Versão FINAL CORRIGIDA (V2) para o "Docker Compose Stack" do Coolify v4
-# Força a reinicialização do banco com as senhas corretas (V2).
+# SOLUÇÃO DEFINITIVA (Resiliência de Rede + DNS Fix)
+# Esta configuração foca na simplicidade extrema que o Coolify v4 prefere.
 
 services:
-  postgres:
+  db-remune:
     image: postgres:16-alpine
+    container_name: db-remune
+    hostname: db-remune
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-remunedata_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}
-      POSTGRES_DB: ${POSTGRES_DB:-remunedata_prod}
+      POSTGRES_USER: 'remunedata_admin'
+      POSTGRES_PASSWORD: 'pg_prod_9XkL2mP5nR8q'
+      POSTGRES_DB: 'remunedata_prod'
     volumes:
-      # Mudado para _v2 para forçar o Postgres a ignorar dados antigos e usar a senha nova
-      - postgres_data_v2:/var/lib/postgresql/data 
+      - postgres_data_v3:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U remunedata_admin -d remunedata_prod"]
+      interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
+    container_name: redis-remune
+    hostname: redis-remune
+    command: redis-server --requirepass redis_prod_7vBc4zY1wS6a
     restart: unless-stopped
     volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - redis_data_v2:/data
 
   app:
     image: ghcr.io/hericlessssss/remunedata-api:latest
+    container_name: app-remune
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      db-remune:
         condition: service_healthy
     environment:
-      # Sincronizado com as variáveis acima
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
-      DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
-      REDIS_URL: redis://redis:6379/0
-      APP_ENV: production
-      LOG_LEVEL: INFO
-      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
-    # Porta externa 8000 removida: deixe o Proxy (Caddy/Traefik) do Coolify cuidar do IP via Dominio
+      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
+      DATABASE_URL_SYNC: 'postgresql+psycopg2://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
+      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@redis-remune:6379/0'
+      APP_ENV: 'production'
+      CORS_ORIGINS: '["https://remunedata.com.br", "https://www.remunedata.com.br"]'
+      LOG_LEVEL: 'INFO'
+      DB_HOST: 'db-remune'
     restart: unless-stopped
 
   worker:
     image: ghcr.io/hericlessssss/remunedata-api:latest
+    container_name: worker-remune
     command: celery -A app.core.celery_app worker --loglevel=info
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      db-remune:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
-      REDIS_URL: redis://redis:6379/0
-      APP_ENV: production
-      LOG_LEVEL: INFO
+      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
+      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@redis-remune:6379/0'
+      APP_ENV: 'production'
+      LOG_LEVEL: 'INFO'
+      DB_HOST: 'db-remune'
     restart: unless-stopped
 
   scheduler:
     image: ghcr.io/hericlessssss/remunedata-api:latest
+    container_name: scheduler-remune
     command: celery -A app.core.celery_app beat --loglevel=info
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      db-remune:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
-      REDIS_URL: redis://redis:6379/0
-      APP_ENV: production
-      LOG_LEVEL: INFO
+      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@db-remune:5432/remunedata_prod'
+      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@redis-remune:6379/0'
+      APP_ENV: 'production'
+      LOG_LEVEL: 'INFO'
+      DB_HOST: 'db-remune'
     restart: unless-stopped
 
 volumes:
-  postgres_data_v2: # Nome do novo volume
-  redis_data:
+  postgres_data_v3: {}
+  redis_data_v2: {}
