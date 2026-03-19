@@ -48,10 +48,34 @@ async def search_remuneration(
     }
 
 
+from datetime import datetime, timedelta
+
+class SummaryCache:
+    data: Optional[dict] = None
+    expires_at: datetime = datetime.min
+    ano: Optional[int] = None
+
+summary_cache = SummaryCache()
+
 @router.get("/summary")
 async def get_summary(
     ano: Optional[int] = Query(None),
     repo: RemunerationRepository = Depends(get_remuneration_repository)
 ):
-    """Retorna dados agregados para o dashboard."""
-    return await repo.get_summary(ano=ano)
+    """Retorna dados agregados para o dashboard com cache de 60 segundos."""
+    now = datetime.now()
+    
+    # Se tiver cache válido no mesmo ano, retorna
+    if summary_cache.data and summary_cache.expires_at > now:
+        if summary_cache.ano == ano:
+            return summary_cache.data
+            
+    # Caso contrário, busca do banco
+    data = await repo.get_summary(ano=ano)
+    
+    # Atualiza cache
+    summary_cache.data = data
+    summary_cache.ano = ano
+    summary_cache.expires_at = now + timedelta(seconds=60)
+    
+    return data

@@ -32,7 +32,7 @@ test:
 	docker compose run --rm -e PYTHONPATH=. app pytest tests/ -v --tb=short
 
 migrate:
-	docker compose run --rm app alembic upgrade head
+	docker compose run --rm -e PYTHONPATH=. app alembic upgrade head
 
 logs:
 	docker compose logs -f

@@ -26,6 +26,10 @@ if database_url_sync:
     config.set_main_option("sqlalchemy.url", database_url_sync)
 
 # target_metadata: apontar para o MetaData dos models para autogenerate.
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from app.persistence.models import Base
 target_metadata = Base.metadata
 

@@ -98,7 +98,7 @@ class RemunerationCollected(Base):
     
     # Lotação
     codigo_orgao: Mapped[str] = mapped_column(String(50), nullable=True, index=True)
-    nome_orgao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    nome_orgao: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
     situacao_funcional: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     situacao_funcional_detalhada: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cargo: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

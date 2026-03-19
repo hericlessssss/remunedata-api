@@ -108,6 +108,9 @@ class MonthlyCollector:
                 
                 # Commit local para garantir progresso persistido
                 await self.execution_repo.session.commit()
+                
+                # Limpar mapa de identidade para evitar consumo excessivo de memória
+                self.execution_repo.session.expunge_all()
 
                 if is_last:
                     logger.info(f"Fim da paginação em {mes}/{ano}: marca 'last=true' na pág {page}.")
