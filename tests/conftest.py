@@ -53,6 +53,11 @@ async def db_session(db_engine):
     )
     
     async with session_factory() as session:
+        # Limpar o banco antes de cada teste para garantir isolamento (Doc item 15)
+        from sqlalchemy import text
+        await session.execute(text("TRUNCATE execution_annual, execution_monthly, remuneration_collected CASCADE"))
+        await session.commit()
+        
         try:
             yield session
         finally:

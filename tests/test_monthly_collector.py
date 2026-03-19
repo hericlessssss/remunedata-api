@@ -38,6 +38,8 @@ async def test_monthly_collect_success(db_session, mock_client):
     assert result.status == "success"
     assert result.registros_coletados > 0
     # Verifica se a annual_exec foi atualizada via repo (precisa de refresh)
+    # Re-adicionamos a sessão pois o coletor chama expunge_all()
+    db_session.add(annual)
     await db_session.refresh(annual)
     assert annual.total_paginas_consumidas >= 1
     assert annual.total_registros_coletados > 0
