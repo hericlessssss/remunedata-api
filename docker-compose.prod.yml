@@ -1,6 +1,6 @@
 # docker-compose.prod.yml
-# SOLUÇÃO DEFINITIVA (Resiliência de Rede + DNS Fix)
-# Esta configuração foca na simplicidade extrema que o Coolify v4 prefere.
+# SOLUÇÃO DEFINITIVA (Sincronização de Registro + Resiliência DNS)
+# Corrigido o nome da imagem para o real do repositório: df-remuneration-collector
 
 services:
   db-remune:
@@ -30,6 +30,7 @@ services:
       - redis_data_v2:/data
 
   app:
+    # A imagem correta do seu GitHub é df-remuneration-collector
     image: ghcr.io/hericlessssss/remunedata-api:latest
     container_name: app-remune
     depends_on:

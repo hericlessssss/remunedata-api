@@ -93,7 +93,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/hericlessssss/remunedata-api
           tags: |
             type=raw,value=latest
             type=sha,format=long
