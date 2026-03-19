@@ -1,17 +1,13 @@
 """
 app/collector/annual.py
-Orquestrador de coleta anual.
-Gerencia a iteração sobre os 12 meses e consolidação de resultados.
+Orquestrador de coleta anual via Repositórios.
 """
 
 from datetime import datetime, timezone
 import collections
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
 from app.collector.monthly import MonthlyCollector
-from app.persistence.models import ExecutionAnnual, ExecutionMonthly
+from app.persistence.models import ExecutionAnnual
+from app.persistence.repositories import ExecutionRepository
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -19,12 +15,12 @@ logger = get_logger(__name__)
 
 class AnnualCollector:
     """
-    Orquestra a coleta de um ano completo (01 a 12).
+    Orquestra a coleta de um ano completo (01 a 12) usando repositórios.
     """
 
-    def __init__(self, monthly_collector: MonthlyCollector, session: AsyncSession):
+    def __init__(self, monthly_collector: MonthlyCollector, execution_repo: ExecutionRepository):
         self.monthly_collector = monthly_collector
-        self.session = session
+        self.execution_repo = execution_repo
 
     async def run(self, ano: int) -> ExecutionAnnual:
         """
@@ -32,15 +28,11 @@ class AnnualCollector:
         """
         logger.info(f"Iniciando orquestração anual para o exercício {ano}")
         
-        # 1. Iniciar registro anual no banco
-        annual_exec = ExecutionAnnual(
-            ano_exercicio=ano,
-            status="running",
-            started_at=datetime.now(timezone.utc)
-        )
-        self.session.add(annual_exec)
-        await self.session.commit()
-        await self.session.refresh(annual_exec)
+        # 1. Iniciar registro anual via Repo
+        annual_exec = await self.execution_repo.get_or_create_annual(ano)
+        annual_exec.status = "running"
+        annual_exec.started_at = datetime.now(timezone.utc)
+        await self.execution_repo.session.commit()
         
         meses = [f"{m:02d}" for m in range(1, 13)]
         stats = collections.Counter()
@@ -49,8 +41,6 @@ class AnnualCollector:
         for mes in meses:
             try:
                 logger.info(f"Orquestrando mês {mes}/{ano}")
-                # Chama o coletor mensal (já lida com sua própria persistência e atualização da annual_exec)
-                # Nota: collect() já faz commit interno de cada página/fim do mês.
                 result = await self.monthly_collector.collect(
                     ano=ano, 
                     mes=mes, 
@@ -61,7 +51,6 @@ class AnnualCollector:
             except Exception as e:
                 logger.error(f"Falha crítica ao orquestrar mês {mes}/{ano}: {str(e)}")
                 stats["error"] += 1
-                # Continuamos para o próximo mês conforme estratégia de 'partial_success'
                 continue
 
         # 3. Finalizar e consolidar status
@@ -71,7 +60,6 @@ class AnnualCollector:
         duration = finished_at - annual_exec.started_at
         annual_exec.duration_ms = int(duration.total_seconds() * 1000)
         
-        # Lógica de status final (Doc 12)
         if stats["success"] == 12:
             annual_exec.status = "success"
         elif stats["success"] > 0:
@@ -79,14 +67,11 @@ class AnnualCollector:
         else:
             annual_exec.status = "error"
             
-        await self.session.commit()
-        await self.session.refresh(annual_exec)
+        await self.execution_repo.session.commit()
+        await self.execution_repo.session.refresh(annual_exec)
         
         logger.info(
-            f"Orquestração anual {ano} finalizada. "
-            f"Status: {annual_exec.status}, "
-            f"Meses OK: {stats['success']}, "
-            f"Meses Erro: {stats['error']}"
+            f"Orquestração anual {ano} finalizada. Status: {annual_exec.status}"
         )
         
         return annual_exec
