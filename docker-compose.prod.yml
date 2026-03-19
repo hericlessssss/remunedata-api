@@ -1,100 +1,81 @@
-# Docker Compose — PRODUCTION Reference
-# Este arquivo serve como blueprint para o Coolify ou deploy manual em produção.
+# docker-compose.prod.yml
+# Versão FINAL para o "Docker Compose Stack" do Coolify v4
+# Inclui: API, Worker, Scheduler, Postgres e Redis com Persistência.
 
 services:
-  app:
-    # A imagem deve ser puxada do GHCR (construída pelo GitHub Actions)
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/df-remuneration-collector:latest
-    container_name: remunedata_api_prod
-    restart: always
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - APP_ENV=production
-      - LOG_LEVEL=INFO
-      - CORS_ORIGINS=["https://remunedata.com.br", "https://www.remunedata.com.br"]
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - prod_network
-
   postgres:
     image: postgres:16-alpine
-    container_name: remunedata_db_prod
-    restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-remunedata_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}
+      POSTGRES_DB: ${POSTGRES_DB:-remunedata_prod}
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - prod_network
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    container_name: remunedata_redis_prod
-    restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    restart: unless-stopped
     volumes:
-      - redis_prod_data:/data
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - prod_network
+
+  app:
+    image: ghcr.io/hericlessssss/remunedata-api:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+    # Porta interna 8000 mapeada automaticamente pelo Proxy do Coolify
+    restart: unless-stopped
 
   worker:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/df-remuneration-collector:latest
-    container_name: remunedata_worker_prod
-    restart: always
+    image: ghcr.io/hericlessssss/remunedata-api:latest
     command: celery -A app.core.celery_app worker --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - APP_ENV=production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - prod_network
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      LOG_LEVEL: INFO
+    restart: unless-stopped
 
   scheduler:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/df-remuneration-collector:latest
-    container_name: remunedata_scheduler_prod
-    restart: always
+    image: ghcr.io/hericlessssss/remunedata-api:latest
     command: celery -A app.core.celery_app beat --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - APP_ENV=production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - prod_network
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-remunedata_admin}:${POSTGRES_PASSWORD:-pg_prod_9XkL2mP5nR8q}@postgres:5432/${POSTGRES_DB:-remunedata_prod}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      LOG_LEVEL: INFO
+    restart: unless-stopped
 
 volumes:
-  postgres_prod_data:
-  redis_prod_data:
-
-networks:
-  prod_network:
-    driver: bridge
+  postgres_data:
+  redis_data:
