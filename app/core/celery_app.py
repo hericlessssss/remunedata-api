@@ -23,3 +23,12 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=3600, # 1 hora de limite máximo por tarefa
 )
+
+from celery.schedules import crontab
+
+celery_app.conf.beat_schedule = {
+    "sync-recent-years-weekly": {
+        "task": "sync_recent_years_task",
+        "schedule": crontab(hour=3, minute=0, day_of_week=1), # Segunda às 03:00
+    },
+}

@@ -50,3 +50,21 @@ def collect_annual_task(self, ano: int):
     except Exception as e:
         logger.error(f"Erro fatal na tarefa de coleta {ano}: {str(e)}")
         raise e
+
+
+@celery_app.task(name="sync_recent_years_task")
+def sync_recent_years_task():
+    """
+    Tarefa periódica para sincronizar o ano atual e o anterior.
+    """
+    from datetime import datetime
+    current_year = datetime.now().year
+    previous_year = current_year - 1
+    
+    logger.info(f"Iniciando sincronização periódica: {previous_year} e {current_year}")
+    
+    # Dispara as tarefas de coleta anual para ambos os anos
+    collect_annual_task.delay(previous_year)
+    collect_annual_task.delay(current_year)
+    
+    return {"status": "queued", "years": [previous_year, current_year]}
