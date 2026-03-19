@@ -22,7 +22,7 @@ class ExecutionRepository:
         record = result.scalars().first()
         
         if not record:
-            record = ExecutionAnnual(ano_exercicio=ano, status="running")
+            record = ExecutionAnnual(ano_exercicio=ano, status="pending")
             self.session.add(record)
             await self.session.commit()
             await self.session.refresh(record)

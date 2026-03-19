@@ -59,3 +59,15 @@ async def db_session(db_engine):
             await session.rollback()
             await session.close()
 
+@pytest.fixture
+def override_get_session(db_session):
+    """Override the get_session dependency with the test db_session."""
+    from app.main import app
+    from app.api.deps import get_session
+    
+    async def _get_session_override():
+        yield db_session
+    
+    app.dependency_overrides[get_session] = _get_session_override
+    yield
+    app.dependency_overrides.pop(get_session, None)

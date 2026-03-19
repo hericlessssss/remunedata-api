@@ -56,6 +56,25 @@ services:
     networks:
       - df_network
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: df_remuneration_worker
+    command: celery -A app.core.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - df_network
+
 volumes:
   postgres_data:
   redis_data:
