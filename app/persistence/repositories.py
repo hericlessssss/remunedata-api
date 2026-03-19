@@ -123,3 +123,13 @@ class RemunerationRepository:
         # or done here if we want immediate persistence per page.
         # Following our current MonthlyCollector logic, we commit per page.
         await self.session.commit()
+
+    async def get_all_by_execution(self, execution_id: int) -> list[RemunerationCollected]:
+        """Busca todos os registros de remuneração de uma execução anual específica."""
+        stmt = (
+            select(RemunerationCollected)
+            .where(RemunerationCollected.execution_id == execution_id)
+            .order_by(RemunerationCollected.mes_referencia.asc(), RemunerationCollected.nome_servidor.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

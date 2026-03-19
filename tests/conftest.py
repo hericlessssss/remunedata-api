@@ -71,3 +71,14 @@ def override_get_session(db_session):
     app.dependency_overrides[get_session] = _get_session_override
     yield
     app.dependency_overrides.pop(get_session, None)
+
+
+@pytest.fixture
+async def client():
+    """Fixture para fornecer um cliente HTTP assíncrono para os testes da API."""
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
