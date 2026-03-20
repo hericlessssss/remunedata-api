@@ -39,4 +39,4 @@ app.mount("/dashboard", StaticFiles(directory="app/static", html=True), name="st
 @app.get("/health")
 async def health_check():
     """Endpoint de health check para monitoramento."""
-    return {"status": "ok", "timestamp": settings.model_dump(), "env": settings.app_env}
+    return {"status": "ok", "env": settings.app_env, "version": "0.1.0"}
