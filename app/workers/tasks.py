@@ -47,7 +47,14 @@ def collect_annual_task(self, ano: int):
         logger.info(f"Tarefa de coleta anual {ano} concluída com status: {task_result['status']}")
         return task_result
     except Exception as e:
-        logger.error(f"Erro fatal na tarefa de coleta {ano}: {str(e)}")
+        from celery.exceptions import SoftTimeLimitExceeded
+
+        if isinstance(e, SoftTimeLimitExceeded):
+            logger.warning(
+                f"Limite suave de tempo atingido para coleta {ano}. A tarefa será encerrada em breve."
+            )
+        else:
+            logger.error(f"Erro fatal na tarefa de coleta {ano}: {str(e)}")
         raise e
 
 

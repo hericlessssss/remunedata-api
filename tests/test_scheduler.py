@@ -13,7 +13,7 @@ def test_celery_beat_schedule_defined():
     """Verifica se o agendamento está presente na configuração do Celery."""
     schedule = celery_app.conf.beat_schedule
     assert "sync-recent-years-daily" in schedule
-    assert schedule["sync-recent-years-daily"]["task"] == "app.workers.tasks.sync_recent_years_task"
+    assert schedule["sync-recent-years-daily"]["task"] == "sync_recent_years_task"
 
 
 def test_sync_recent_years_task_queues_two_tasks():

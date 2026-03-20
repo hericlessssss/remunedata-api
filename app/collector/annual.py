@@ -41,6 +41,15 @@ class AnnualCollector:
         # 2. Iterar meses
         for mes in meses:
             try:
+                # 2.1 Verificar se o mês já foi concluído com sucesso nesta execução
+                existing_monthly = await self.execution_repo.get_monthly_execution_by_mes(
+                    annual_exec.id, mes
+                )
+                if existing_monthly and existing_monthly.status == "success":
+                    logger.info(f"Mês {mes}/{ano} já concluído com sucesso. Pulando...")
+                    stats["success"] += 1
+                    continue
+
                 logger.info(f"Orquestrando mês {mes}/{ano}")
                 result = await self.monthly_collector.collect(
                     ano=ano, mes=mes, annual_execution_id=annual_exec.id

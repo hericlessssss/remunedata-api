@@ -9,9 +9,9 @@ Esta documentação explica como o pipeline de CI/CD interage com o Coolify v4.0
    - Constrói a imagem de produção.
    - Gera tags: `latest` e o `SHA` do commit.
    - Faz o push para o **GitHub Container Registry (GHCR)**.
-4. **Trigger Webhook**:
-   - O GitHub Action envia um POST para a URL do Coolify.
-   - O Coolify detecta o sinal e inicia o pull da nova imagem e o rollout da Stack.
+412. **Trigger API (Coolify)**:
+   - O GitHub Action chama a API oficial do Coolify (`/api/v1/deploy`).
+   - O Coolify inicia o pull das imagens e o rollout da stack de forma assíncrona.
 
 ## Configuração Necessária no GitHub
 
@@ -19,7 +19,9 @@ Para que o deploy funcione, os seguintes segredos devem ser configurados em `Set
 
 | Secret | Descrição | Origem no Coolify |
 | :--- | :--- | :--- |
-| `COOLIFY_WEBHOOK` | URL de deploy do recurso. | Application > Deploy Webhook |
+| `COOLIFY_API_TOKEN` | Token de acesso à API. | Keys & Tokens > API Tokens |
+| `COOLIFY_INSTANCE_URL` | URL do painel (ex: `http://IP:8000`). | URL do Painel |
+| `COOLIFY_RESOURCE_UUID` | Identificador único do recurso. | URL do Recurso (parte final) |
 
 ## Configuração no Coolify
 

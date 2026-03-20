@@ -35,8 +35,25 @@ class ExecutionRepository:
 
         return record
 
+    async def get_monthly_execution_by_mes(
+        self, annual_id: int, mes: str
+    ) -> Optional[ExecutionMonthly]:
+        """Busca um registro de execução mensal específico."""
+        stmt = select(ExecutionMonthly).where(
+            ExecutionMonthly.execution_id == annual_id, ExecutionMonthly.mes_referencia == mes
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def create_monthly(self, annual_id: int, mes: str) -> ExecutionMonthly:
-        """Cria um registro de execução mensal vinculado a uma anual."""
+        """Cria ou recupera um registro de execução mensal."""
+        existing = await self.get_monthly_execution_by_mes(annual_id, mes)
+        if existing:
+            # Se já existe, reiniciamos o status para running
+            existing.status = "running"
+            await self.session.commit()
+            return existing
+
         monthly = ExecutionMonthly(execution_id=annual_id, mes_referencia=mes, status="running")
         self.session.add(monthly)
         await self.session.commit()
@@ -203,3 +220,13 @@ class RemunerationRepository:
             "total_gasto_bruto": float(totals["sum_bruto"] or 0),
             "top_orgaos": top_orgaos,
         }
+
+    async def delete_monthly_records(self, monthly_id: int):
+        """Remove todos os registros de remuneração de uma execução mensal específica."""
+        from sqlalchemy import delete
+
+        stmt = delete(RemunerationCollected).where(
+            RemunerationCollected.monthly_execution_id == monthly_id
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()

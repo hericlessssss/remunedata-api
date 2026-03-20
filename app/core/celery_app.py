@@ -23,12 +23,13 @@ celery_app.conf.update(
     timezone="America/Sao_Paulo",
     enable_utc=True,
     task_track_started=True,
-    task_time_limit=3600,  # 1 hora de limite máximo por tarefa
+    task_time_limit=14400,  # 4 horas de limite máximo (hard limit)
+    task_soft_time_limit=12600,  # 3.5 horas de limite suave (soft limit)
 )
 
 celery_app.conf.beat_schedule = {
     "sync-recent-years-daily": {
-        "task": "app.workers.tasks.sync_recent_years_task",
+        "task": "sync_recent_years_task",
         "schedule": crontab(hour=3, minute=0),  # Diário às 03:00 AM
     },
 }

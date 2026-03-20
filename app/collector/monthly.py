@@ -38,6 +38,14 @@ class MonthlyCollector:
         # 1. Criar registro mensal via Repo
         monthly_exec = await self.execution_repo.create_monthly(annual_execution_id, mes)
 
+        # 1.1 Limpar dados parciais caso seja uma re-execução do mesmo mês
+        logger.info(f"Limpando registros prévios para {mes}/{ano} (ID: {monthly_exec.id})")
+        await self.remuneration_repo.delete_monthly_records(monthly_exec.id)
+
+        # Resetar contadores locais caso o registro tenha sido reaproveitado
+        monthly_exec.paginas_consumidas = 0
+        monthly_exec.registros_coletados = 0
+
         page = 0
         size = 150
 
