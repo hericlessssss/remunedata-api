@@ -23,8 +23,8 @@ celery_app.conf.update(
     timezone="America/Sao_Paulo",
     enable_utc=True,
     task_track_started=True,
-    task_time_limit=14400,  # 4 horas de limite máximo (hard limit)
-    task_soft_time_limit=12600,  # 3.5 horas de limite suave (soft limit)
+    task_time_limit=86400,  # 24 horas (limite máximo para coleta massiva)
+    task_soft_time_limit=82800,  # 23 horas (aviso para finalização graciosa)
 )
 
 celery_app.conf.beat_schedule = {
