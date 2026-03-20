@@ -76,11 +76,11 @@ class AnnualCollector:
             annual_exec.status = "error"
 
         await self.execution_repo.session.commit()
-        
+
         # Garantir que o objeto está na sessão (caso tenha sido expunged por engano)
         if annual_exec not in self.execution_repo.session:
             self.execution_repo.session.add(annual_exec)
-            
+
         await self.execution_repo.session.refresh(annual_exec)
 
         logger.info(f"Orquestração anual {ano} finalizada. Status: {annual_exec.status}")
