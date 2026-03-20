@@ -21,14 +21,15 @@ router = APIRouter()
 @router.post("/", response_model=ExecutionAnnualRead, status_code=201)
 async def trigger_collection(
     ano: int = Query(..., ge=2000, le=2100),
+    force: bool = Query(False, description="Forçar reinicialização se já estiver rodando"),
     repo: ExecutionRepository = Depends(get_execution_repository),
 ):
     """Dispara uma nova coleta anual em background."""
     # 1. Criar registro inicial no banco
     record = await repo.get_or_create_annual(ano)
 
-    if record.status == "running":
-        # Se já estiver rodando, apenas retorna o registro ( idempotência básica )
+    if record.status == "running" and not force:
+        # Se já estiver rodando, apenas retorna o registro (idempotência básica)
         return record
 
     # 2. Resetar status se for um re-run de erro/concluído
