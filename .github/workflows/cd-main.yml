@@ -115,6 +115,9 @@ jobs:
 
       - name: Trigger Coolify Deploy
         if: github.ref == 'refs/heads/main'
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
         run: |
           echo "Triggering Coolify webhook..."
-          curl -X POST "${{ secrets.COOLIFY_WEBHOOK }}"
+          # Tenta GET e POST com verbose para depuração
+          curl -v "$COOLIFY_WEBHOOK"

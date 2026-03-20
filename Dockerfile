@@ -44,8 +44,8 @@ RUN chmod +x entrypoint.sh
 
 # Segurança: usuário não-root
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-# Garantir permissão na pasta /app para o appuser (Correção do Erro de Permissão do Scheduler)
-RUN chown -R appuser:appgroup /app
+# Criar pasta de dados para o Celery Beat e garantir permissão
+RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 8000

@@ -86,7 +86,7 @@ services:
 
   scheduler:
     image: ghcr.io/hericlessssss/remunedata-api:latest
-    command: celery -A app.core.celery_app beat --loglevel=info
+    command: celery -A app.core.celery_app beat --loglevel=info -s /app/data/celerybeat-schedule
     depends_on:
       db:
         condition: service_healthy
