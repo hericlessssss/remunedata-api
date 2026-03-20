@@ -158,9 +158,14 @@ class MonthlyCollector:
                         annual_execution_id, pages=total_new_pages, elements=len(all_records)
                     )
 
-                    # Commit e Expunge para liberar memória
+                    # Commit e Expunge APENAS dos registros coletados para liberar memória
+                    # Mantemos os objetos de execução (monthly_exec/annual_exec) na sessão
                     await self.execution_repo.session.commit()
-                    self.execution_repo.session.expunge_all()
+                    for record in all_records:
+                        try:
+                            self.execution_repo.session.expunge(record)
+                        except Exception:
+                            pass
 
                 # Incrementar ponteiro de página para o próximo batch
                 page += batch_size
