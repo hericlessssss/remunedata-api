@@ -1,3 +1,4 @@
+# .github/workflows/cd-main.yml
 name: CD Main
 
 on:
@@ -73,7 +74,7 @@ jobs:
         run: pytest --cov=app --cov-report=term-missing
 
   deploy:
-    name: "Deploy Produção"
+    name: "Build & Deploy"
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -81,22 +82,27 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/hericlessssss/remunedata-api
+          images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=long
+            type=ref,event=branch
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -106,5 +112,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - name: Trigger Coolify Deploy
-        run: curl -X POST "${{ secrets.COOLIFY_WEBHOOK }}"
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Triggering Coolify webhook..."
+          curl -X POST "${{ secrets.COOLIFY_WEBHOOK }}"

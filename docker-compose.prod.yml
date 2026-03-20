@@ -1,98 +1,108 @@
 # docker-compose.prod.yml
-# SOLUÇÃO DEFINITIVA (Pivô para IP Estático / Rede Determinística)
-# Esta configuração ignora completamente o DNS do Docker e usa IPs internos fixos.
+# Estratégia resiliente para Coolify v4.0.0-beta.463
 
 services:
-  db-remune:
+  db:
     image: postgres:16-alpine
-    container_name: db-remune
     environment:
-      POSTGRES_USER: 'remunedata_admin'
-      POSTGRES_PASSWORD: 'pg_prod_9XkL2mP5nR8q'
-      POSTGRES_DB: 'remunedata_prod'
+      POSTGRES_USER: ${POSTGRES_USER:-remunedata_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?database password required}
+      POSTGRES_DB: ${POSTGRES_DB:-remunedata_prod}
     volumes:
-      - postgres_data_v3:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U remunedata_admin -d remunedata_prod"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks:
-      remune_stack_net:
-        ipv4_address: 172.28.0.10 # IP Estático para o Banco
 
-  redis-remune:
+  redis:
     image: redis:7-alpine
-    container_name: redis-remune
-    command: redis-server --requirepass redis_prod_7vBc4zY1wS6a
+    command: redis-server --requirepass ${REDIS_PASSWORD:?redis password required}
     restart: unless-stopped
     volumes:
-      - redis_data_v2:/data
-    networks:
-      remune_stack_net:
-        ipv4_address: 172.28.0.20 # IP Estático para o Redis
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  app:
+  migrate:
     image: ghcr.io/hericlessssss/remunedata-api:latest
-    container_name: app-remune
     depends_on:
-      db-remune:
+      db:
         condition: service_healthy
     environment:
-      # USANDO IPs DIRETAMENTE (Tchau DNS instável!)
-      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
-      DATABASE_URL_SYNC: 'postgresql+psycopg2://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
-      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@172.28.0.20:6379/0'
-      APP_ENV: 'production'
-      CORS_ORIGINS: '["https://remunedata.com.br", "https://www.remunedata.com.br"]'
-      LOG_LEVEL: 'INFO'
-      DB_HOST: '172.28.0.10' # O Entrypoint vai esperar por este IP
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:?DATABASE_URL_SYNC required}
+      DB_HOST: db
+    command: alembic upgrade head
+    restart: "no"
+
+  api:
+    image: ghcr.io/hericlessssss/remunedata-api:latest
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL required}
+      APP_ENV: production
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+      LOG_LEVEL: INFO
+      DB_HOST: db
+      REDIS_HOST: redis
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\").read()' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
-    networks:
-      - remune_stack_net
 
   worker:
     image: ghcr.io/hericlessssss/remunedata-api:latest
-    container_name: worker-remune
     command: celery -A app.core.celery_app worker --loglevel=info
     depends_on:
-      db-remune:
+      db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
-      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
-      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@172.28.0.20:6379/0'
-      APP_ENV: 'production'
-      LOG_LEVEL: 'INFO'
-      DB_HOST: '172.28.0.10'
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL required}
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      DB_HOST: db
+      REDIS_HOST: redis
     restart: unless-stopped
-    networks:
-      - remune_stack_net
 
   scheduler:
     image: ghcr.io/hericlessssss/remunedata-api:latest
-    container_name: scheduler-remune
     command: celery -A app.core.celery_app beat --loglevel=info
     depends_on:
-      db-remune:
+      db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
-      DATABASE_URL: 'postgresql+asyncpg://remunedata_admin:pg_prod_9XkL2mP5nR8q@172.28.0.10:5432/remunedata_prod'
-      REDIS_URL: 'redis://:redis_prod_7vBc4zY1wS6a@172.28.0.20:6379/0'
-      APP_ENV: 'production'
-      LOG_LEVEL: 'INFO'
-      DB_HOST: '172.28.0.10'
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL required}
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      DB_HOST: db
+      REDIS_HOST: redis
     restart: unless-stopped
-    networks:
-      - remune_stack_net
 
 volumes:
-  postgres_data_v3: {}
-  redis_data_v2: {}
-
-networks:
-  remune_stack_net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16
+  postgres_data:
+  redis_data:
