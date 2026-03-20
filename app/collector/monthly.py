@@ -3,6 +3,7 @@ app/collector/monthly.py
 Coleta dados de um mês específico e persiste no banco via Repositórios.
 """
 
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -38,34 +39,56 @@ class MonthlyCollector:
         # 1. Criar registro mensal via Repo
         monthly_exec = await self.execution_repo.create_monthly(annual_execution_id, mes)
 
-        # 1.1 Limpar dados parciais caso seja uma re-execução do mesmo mês
-        logger.info(f"Limpando registros prévios para {mes}/{ano} (ID: {monthly_exec.id})")
-        await self.remuneration_repo.delete_monthly_records(monthly_exec.id)
+        # 1.1 Limpar dados parciais de QUALQUER execução prévia para este mesmo mês/ano
+        logger.info(f"Limpando registros globais para {mes}/{ano} antes de iniciar nova coleta.")
+        await self.remuneration_repo.delete_records_by_period(ano, mes)
 
         # Resetar contadores locais caso o registro tenha sido reaproveitado
         monthly_exec.paginas_consumidas = 0
         monthly_exec.registros_coletados = 0
 
+        batch_size = 5
         page = 0
         size = 150
+        stop_collection = False
 
         try:
-            while True:
-                logger.debug(f"Coletando {mes}/{ano} - Página {page}")
-                data = await self.client.get_remuneracao(ano=ano, mes=mes, page=page, size=size)
+            while not stop_collection:
+                # 2. Coleta em lote (Batch de 5 páginas simultâneas)
+                batch_pages = list(range(page, page + batch_size))
+                logger.debug(f"Coletando lote de páginas: {batch_pages} para {mes}/{ano}")
 
-                content = data.get("content", [])
-                num_elements = data.get("numberOfElements", 0)
-                is_last = data.get("last", False)
+                tasks = [
+                    self.client.get_remuneracao(ano=ano, mes=mes, page=p, size=size)
+                    for p in batch_pages
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                if not content or num_elements == 0:
-                    logger.info(f"Fim da paginação em {mes}/{ano}: página {page} vazia.")
-                    break
+                all_records = []
+                total_new_pages = 0
 
-                # 2. Mapear e Salvar em lote via Repo
-                records = []
-                for item in content:
-                    records.append(
+                for i, data in enumerate(results):
+                    if isinstance(data, Exception):
+                        error_msg = str(data)
+                        logger.error(f"Erro ao coletar página {batch_pages[i]}: {error_msg}")
+                        stop_collection = True
+                        monthly_exec.status = "error"
+                        monthly_exec.error_message = error_msg
+                        break
+
+                    content = data.get("content", [])
+                    num_elements = data.get("numberOfElements", 0)
+                    is_last = data.get("last", False)
+
+                    if not content or num_elements == 0:
+                        logger.info(
+                            f"Fim da paginação em {mes}/{ano}: página {batch_pages[i]} vazia."
+                        )
+                        stop_collection = True
+                        break
+
+                    # Mapear registros desta página
+                    page_records = [
                         RemunerationCollected(
                             execution_id=annual_execution_id,
                             monthly_execution_id=monthly_exec.id,
@@ -111,37 +134,43 @@ class MonthlyCollector:
                             valor_bruto=float(item.get("valorBruto", 0)),
                             raw_payload_json=json.dumps(item),
                         )
+                        for item in content
+                    ]
+                    all_records.extend(page_records)
+                    total_new_pages += 1
+
+                    if is_last:
+                        logger.info(
+                            f"Fim da paginação em {mes}/{ano}: marca 'last=true' na pág {batch_pages[i]}."
+                        )
+                        stop_collection = True
+                        break
+
+                # 3. Salvar lote acumulado de todas as páginas do batch
+                if all_records:
+                    await self.remuneration_repo.save_batch(all_records)
+
+                    # Atualizar contadores
+                    monthly_exec.paginas_consumidas += total_new_pages
+                    monthly_exec.registros_coletados += len(all_records)
+
+                    await self.execution_repo.update_annual_progress(
+                        annual_execution_id, pages=total_new_pages, elements=len(all_records)
                     )
 
-                await self.remuneration_repo.save_batch(records)
+                    # Commit e Expunge para liberar memória
+                    await self.execution_repo.session.commit()
+                    self.execution_repo.session.expunge_all()
 
-                # 3. Atualizar contadores mensais/anuais via Repo
-                monthly_exec.paginas_consumidas += 1
-                monthly_exec.registros_coletados += len(records)
+                # Incrementar ponteiro de página para o próximo batch
+                page += batch_size
 
-                await self.execution_repo.update_annual_progress(
-                    annual_execution_id, pages=1, elements=len(records)
-                )
-
-                # Commit local para garantir progresso persistido
-                await self.execution_repo.session.commit()
-
-                # Limpar mapa de identidade para evitar consumo excessivo de memória
-                self.execution_repo.session.expunge_all()
-
-                if is_last:
-                    logger.info(
-                        f"Fim da paginação em {mes}/{ano}: marca 'last=true' na pág {page}."
-                    )
-                    break
-
-                page += 1
-
-            monthly_exec.status = "success"
+            if monthly_exec.status != "error":
+                monthly_exec.status = "success"
             monthly_exec.finished_at = datetime.now(timezone.utc)
 
         except Exception as e:
-            logger.error(f"Erro na coleta de {mes}/{ano}: {str(e)}")
+            logger.error(f"Erro fatal na coleta de {mes}/{ano}: {str(e)}")
             monthly_exec.status = "error"
             monthly_exec.error_message = str(e)
             monthly_exec.finished_at = datetime.now(timezone.utc)

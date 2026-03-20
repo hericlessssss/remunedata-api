@@ -1,4 +1,4 @@
-    # Guia de Testes Direto ao Ponto 🚀
+    # Guia de Testes Direto ao Ponto 
 
 Aqui estão os passos para você validar todas as funcionalidades do projeto.
 
@@ -52,4 +52,4 @@ curl.exe -O -J -L "http://localhost:8000/api/v1/executions/1/export?format=xlsx"
 *Dica: Você também pode clicar no botão "Download" dentro do Swagger (`/docs`) na rota de export.*
 
 ---
-**Status:** Pronto para validação final! ✅
+**Status:** Pronto para validação final! 

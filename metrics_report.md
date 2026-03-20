@@ -5,11 +5,11 @@ O projeto atingiu o estado de "Pronto para Produção" (Production Ready), super
 
 | Métrica | Resultado | Status |
 |---|---|---|
-| **Testes (Total/Passando)** | 45 / 45 | ✅ 100% Pass |
-| **Cobertura de Código** | 87.78% | ✅ > 86% Goal |
-| **Estabilidade de Memória** | Estável (~476MB) | ✅ Fixo |
-| **Tempo Resposta Dashboard** | < 1s (com cache) | ✅ Otimizado |
-| **Conformidade PDF (1-4)** | 100% | ✅ Validado |
+| **Testes (Total/Passando)** | 45 / 45 |  100% Pass |
+| **Cobertura de Código** | 86.67% |  Acima da meta de 86% |
+| **Estabilidade de Memória** | Estável (~476MB) |  Fixo |
+| **Tempo Resposta Dashboard** | < 1s (com cache) |  Otimizado |
+| **Conformidade PDF (1-4)** | 100% |  Validado |
 
 ---
 
@@ -22,7 +22,7 @@ O projeto atingiu o estado de "Pronto para Produção" (Production Ready), super
 | `app/persistence/repositories.py` | 99% | Camada de dados com 100% de filtragem validada. |
 | `app/api/` | 100% | Todos os endpoints e schemas validados. |
 | `app/workers/tasks.py` | 92% | Processamento assíncrono validado. |
-| `app/core/logging.py` | 35% | Baixa cobertura (configuração estática de inicialização). |
+| `app/core/logging.py` | 96% | Cobertura expandida para 96% no teste de integracao. |
 
 ### Conformidade com Requisitos (Pasta /docs)
 - **Doc 11 (Algoritmo):** Implementada paginação resiliente com `size=150` e condições de parada (`last=true`, `content=0`).

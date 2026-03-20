@@ -222,11 +222,21 @@ class RemunerationRepository:
         }
 
     async def delete_monthly_records(self, monthly_id: int):
-        """Remove todos os registros de remuneração de uma execução mensal específica."""
+        """Remove todos os registros de remuneração de uma execução mensal específica. (Obsoleto: use delete_records_by_period)"""
         from sqlalchemy import delete
 
         stmt = delete(RemunerationCollected).where(
             RemunerationCollected.monthly_execution_id == monthly_id
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()
+
+    async def delete_records_by_period(self, ano: int, mes: str):
+        """Remove todos os registros de remuneração para um ano/mês específico globalmente."""
+        from sqlalchemy import delete
+
+        stmt = delete(RemunerationCollected).where(
+            RemunerationCollected.ano_exercicio == ano, RemunerationCollected.mes_referencia == mes
         )
         await self.session.execute(stmt)
         await self.session.commit()
