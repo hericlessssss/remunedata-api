@@ -176,6 +176,7 @@ docker compose down -v
 | 15 — CI/CD, Deploy & Hardening | GitHub Actions + Coolify + CORS/Proxy config |  Concluída |
 | 16 — Estabilização Celery | Timeouts e Sincronia de Registro de Tarefas | Concluída |
 | 17 — Idempotência de Coleta | Estratégia Clean & Resume para Resiliência | Concluída |
+| 18 — Estabilização Final | Fix de Sessão (Detachment) e Retomada 2024 | Concluída |
 | 18 — Performance & Integridade | Coleta Nitro (Async Batching) e Purge Global | Concluída |
 
 ---
@@ -284,6 +285,7 @@ docker compose down -v
 | 30 | Celery Timeout (1h) | Limite padrão de 1h era insuficiente para coletas de 220k+ registros | Aumentado `task_time_limit` para 4h e adicionado `soft_time_limit` para 3.5h |
 | 31 | Unregistered Task | Mismatch entre nome explícito no @task e nome no agendador periódico | Sincronizados nomes das tarefas no `beat_schedule` do `celery_app.py` |
 | 32 | Duplicidade na Re-execução | Coletas reiniciadas duplicavam dados e gastavam tempo desnecessário | Implementada estratégia Clean & Resume (Pula meses OK, limpa parciais) |
+| 36 | InvalidRequestError (Session) | expunge_all() desanexava ExecutionAnnual, causando erro fatal no final do mês | Substituído expunge_all() por loop cirúrgico nos registros coletados |
 | 33 | Timeout em Coletas Longas | Coletas de anos volumosos (2024+) excediam 4h | Aumentado task_time_limit para 24h (86400s) |
 | 34 | Performance de Scraping | Coleta sequencial era lenta para grandes volumes | Implementado Batching Assíncrono (5 páginas por vez via asyncio.gather) |
 | 35 | Duplicidade Cross-Execution | Troca de ID de execução deixava lixo de tentativas anteriores | Implementado Purge Global por Periodo (Ano/Mes) antes de iniciar coleta |
