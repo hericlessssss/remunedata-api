@@ -120,7 +120,7 @@ jobs:
           COOLIFY_INSTANCE_URL: ${{ secrets.COOLIFY_INSTANCE_URL }}
           COOLIFY_RESOURCE_UUID: ${{ secrets.COOLIFY_RESOURCE_UUID }}
         run: |
-          echo "Triggering Coolify deployment via API..."
-          curl --fail --show-error -X POST \
+          echo "Triggering Coolify deployment via API (GET)..."
+          curl --fail --show-error -L -X GET \
             "$COOLIFY_INSTANCE_URL/api/v1/deploy?uuid=$COOLIFY_RESOURCE_UUID&force=true" \
             -H "Authorization: Bearer $COOLIFY_API_TOKEN"
