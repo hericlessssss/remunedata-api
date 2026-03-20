@@ -24,7 +24,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Banco de dados ─────────────────────────────────────────────────────────
+    # Banco de dados
     database_url: str = Field(
         description="URL de conexão assíncrona (asyncpg) para SQLAlchemy 2.x",
     )
@@ -32,13 +32,13 @@ class Settings(BaseSettings):
         description="URL de conexão síncrona (psycopg2) para Alembic migrations",
     )
 
-    # ── Redis ──────────────────────────────────────────────────────────────────
+    # Redis
     redis_url: str = Field(
         default="redis://localhost:6379/0",
         description="URL de conexão com Redis",
     )
 
-    # ── Aplicação ──────────────────────────────────────────────────────────────
+    # Aplicação
     app_env: str = Field(
         default="development",
         description="Ambiente da aplicação: development, staging, production",
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
         description="Nível de logging: DEBUG, INFO, WARNING, ERROR, CRITICAL",
     )
 
-    # ── API do Portal da Transparência ─────────────────────────────────────────
+    # API do Portal da Transparência
     transparencia_api_base_url: str = Field(
         default="https://www.transparencia.df.gov.br/api",
         description="URL base da API do Portal da Transparência do DF",
@@ -66,7 +66,7 @@ class Settings(BaseSettings):
         le=120,
     )
 
-    # ── CORS ───────────────────────────────────────────────────────────────────
+    # CORS
     cors_origins: list[str] = Field(
         default=["*"],
         description="Lista de origens permitidas para CORS (ex: ['https://remunedata.com.br'])",
