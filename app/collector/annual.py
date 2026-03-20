@@ -33,26 +33,26 @@ class AnnualCollector:
         annual_exec = await self.execution_repo.get_or_create_annual(ano)
         annual_exec.status = "running"
         annual_exec.started_at = datetime.now(timezone.utc)
-        
+
         # Reset counters para refletir apenas meses que REALMENTE estão com status success
         from sqlalchemy import func, select
+
         from app.persistence.models import ExecutionMonthly
-        
+
         stats_stmt = select(
             func.sum(ExecutionMonthly.paginas_consumidas),
             func.sum(ExecutionMonthly.registros_coletados),
-            func.count(ExecutionMonthly.id)
+            func.count(ExecutionMonthly.id),
         ).where(
-            ExecutionMonthly.execution_id == annual_exec.id,
-            ExecutionMonthly.status == "success"
+            ExecutionMonthly.execution_id == annual_exec.id, ExecutionMonthly.status == "success"
         )
         stats_res = await self.execution_repo.session.execute(stats_stmt)
         p_sums, r_sums, m_count = stats_res.fetchone() or (0, 0, 0)
-        
+
         annual_exec.total_paginas_consumidas = p_sums or 0
         annual_exec.total_registros_coletados = r_sums or 0
         annual_exec.total_meses_processados = m_count or 0
-        
+
         await self.execution_repo.session.commit()
 
         meses = [f"{m:02d}" for m in range(1, 13)]
@@ -75,7 +75,7 @@ class AnnualCollector:
                     ano=ano, mes=mes, annual_execution_id=annual_exec.id
                 )
                 stats[result.status] += 1
-                
+
                 if result.status == "success":
                     annual_exec.total_meses_processados += 1
                     await self.execution_repo.session.commit()

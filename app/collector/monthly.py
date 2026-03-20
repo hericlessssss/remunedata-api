@@ -42,7 +42,9 @@ class MonthlyCollector:
         # 1.1 Limpar dados parciais APENAS se estivermos começando do zero (Fresh Start)
         # Se paginas_consumidas > 0, pulamos a limpeza e retomamos de onde paramos (Super Nitro)
         if monthly_exec.paginas_consumidas == 0:
-            logger.info(f"Limpando registros globais para {mes}/{ano} antes de iniciar nova coleta.")
+            logger.info(
+                f"Limpando registros globais para {mes}/{ano} antes de iniciar nova coleta."
+            )
             await self.remuneration_repo.delete_records_by_period(ano, mes)
         else:
             logger.info(

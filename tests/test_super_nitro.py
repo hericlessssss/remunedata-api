@@ -19,11 +19,10 @@ async def test_super_nitro_skips_pages(db_session):
     rem_repo = RemunerationRepository(db_session)
 
     # 1. Criar execução com progresso prévio (pág 1 já concluída)
-    from app.persistence.models import ExecutionAnnual, ExecutionMonthly
 
     annual = await exec_repo.get_or_create_annual(2024)
     monthly = await exec_repo.create_monthly(annual.id, "01")
-    
+
     # Simular que a página 0 já foi processada
     monthly.paginas_consumidas = 1
     monthly.registros_coletados = 150
@@ -33,7 +32,7 @@ async def test_super_nitro_skips_pages(db_session):
     mock_client = AsyncMock()
     with open("tests/mocks/remuneracao_page_0.json", "r", encoding="utf-8") as f:
         mock_response = json.load(f)
-    
+
     # O cliente retorna dados para qualquer página
     mock_client.get_remuneracao.return_value = mock_response
 
@@ -46,13 +45,13 @@ async def test_super_nitro_skips_pages(db_session):
 
     # 4. Verificações
     calls = mock_client.get_remuneracao.call_args_list
-    pages_called = [call.kwargs['page'] for call in calls]
-    
+    pages_called = [call.kwargs["page"] for call in calls]
+
     # Não deve conter a pág 0
     assert 0 not in pages_called
     # Deve conter a pág 1 (início da retomada)
     assert 1 in pages_called
-    
+
     # O status deve ser success
     await db_session.refresh(monthly)
     assert monthly.status == "success"
