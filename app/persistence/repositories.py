@@ -68,8 +68,6 @@ class ExecutionRepository:
             .values(
                 total_paginas_consumidas=ExecutionAnnual.total_paginas_consumidas + pages,
                 total_registros_coletados=ExecutionAnnual.total_registros_coletados + elements,
-                total_meses_processados=ExecutionAnnual.total_meses_processados
-                + (1 if pages > 0 else 0),
             )
         )
         await self.session.execute(stmt)

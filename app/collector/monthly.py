@@ -39,16 +39,20 @@ class MonthlyCollector:
         # 1. Criar registro mensal via Repo
         monthly_exec = await self.execution_repo.create_monthly(annual_execution_id, mes)
 
-        # 1.1 Limpar dados parciais de QUALQUER execução prévia para este mesmo mês/ano
-        logger.info(f"Limpando registros globais para {mes}/{ano} antes de iniciar nova coleta.")
-        await self.remuneration_repo.delete_records_by_period(ano, mes)
+        # 1.1 Limpar dados parciais APENAS se estivermos começando do zero (Fresh Start)
+        # Se paginas_consumidas > 0, pulamos a limpeza e retomamos de onde paramos (Super Nitro)
+        if monthly_exec.paginas_consumidas == 0:
+            logger.info(
+                f"Limpando registros globais para {mes}/{ano} antes de iniciar nova coleta."
+            )
+            await self.remuneration_repo.delete_records_by_period(ano, mes)
+        else:
+            logger.info(
+                f"Super Nitro: Retomando coleta para {mes}/{ano} a partir da pág {monthly_exec.paginas_consumidas}."
+            )
 
-        # Resetar contadores locais caso o registro tenha sido reaproveitado
-        monthly_exec.paginas_consumidas = 0
-        monthly_exec.registros_coletados = 0
-
+        page = monthly_exec.paginas_consumidas
         batch_size = 5
-        page = 0
         size = 150
         stop_collection = False
 
