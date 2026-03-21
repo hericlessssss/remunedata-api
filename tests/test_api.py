@@ -75,3 +75,19 @@ async def test_api_execution_not_found(override_get_session):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get("/api/v1/executions/999999")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_debug_and_health_endpoints():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # Test Health
+        resp_h = await ac.get("/health")
+        assert resp_h.status_code == 200
+        assert resp_h.json()["status"] == "ok"
+
+        # Test Debug Routes
+        resp_d = await ac.get("/debug-routes")
+        assert resp_d.status_code == 200
+        assert isinstance(resp_d.json(), list)
+        assert len(resp_d.json()) > 0
