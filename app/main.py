@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 app = FastAPI(
     title="DF Remuneration Collector API",
     description="API para coleta e consulta de remuneração dos servidores do DF",
-    version="0.1.0",
+    version="0.1.1",
 )
 
 # Configurar CORS
