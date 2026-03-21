@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 app = FastAPI(
     title="DF Remuneration Collector API",
     description="API para coleta e consulta de remuneração dos servidores do DF",
-    version="0.1.1",
+    version="0.1.2",
 )
 
 # Configurar CORS
@@ -29,21 +29,14 @@ app.add_middleware(
 )
 
 
-# Registrar Rotas
-app.include_router(api_router, prefix="/api/v1")
-
-# Servir Dashboard Estático
-app.mount("/dashboard", StaticFiles(directory="app/static", html=True), name="static")
-
-
 @app.get("/health")
 async def health_check():
     """Endpoint de health check para monitoramento."""
     return {
         "status": "ok",
         "env": settings.app_env,
-        "version": "0.1.2",
-        "deployment_id": "FINAL_TEST_999",
+        "version": app.version,
+        "deployment_id": "FINAL_DEPLOY_V012",
     }
 
 
@@ -59,3 +52,10 @@ async def debug_routes():
         elif isinstance(route, Mount):
             routes.append({"path": route.path, "name": route.name, "methods": ["MOUNT"]})
     return routes
+
+
+# Registrar Rotas
+app.include_router(api_router, prefix="/api/v1")
+
+# Servir Dashboard Estático
+app.mount("/dashboard", StaticFiles(directory="app/static", html=True), name="static")
