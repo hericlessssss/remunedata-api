@@ -97,6 +97,33 @@ class ExecutionRepository:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def sync_annual_stats(self, annual_id: int):
+        """Re-calcula e sincroniza os totais da execução anual baseados nos meses de sucesso."""
+        from sqlalchemy import func
+
+        stmt = select(
+            func.sum(ExecutionMonthly.paginas_consumidas),
+            func.sum(ExecutionMonthly.registros_coletados),
+            func.count(ExecutionMonthly.id),
+        ).where(ExecutionMonthly.execution_id == annual_id, ExecutionMonthly.status == "success")
+        stats_res = await self.session.execute(stmt)
+        p_sums, r_sums, m_count = stats_res.fetchone() or (0, 0, 0)
+
+        # Atualiza o registro anual
+        annual = await self.get_annual(annual_id)
+        if annual:
+            annual.total_paginas_consumidas = p_sums or 0
+            annual.total_registros_coletados = r_sums or 0
+            annual.total_meses_processados = m_count or 0
+
+            # Se todos os 12 meses estão success, marca o anual como success
+            if m_count == 12:
+                annual.status = "success"
+            elif m_count > 0:
+                annual.status = "partial_success"
+
+            await self.session.commit()
+
 
 class RemunerationRepository:
     """Repositório para gerenciar os dados de remuneração coletados."""

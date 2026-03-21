@@ -62,22 +62,44 @@ class MonthlyCollector:
                 batch_pages = list(range(page, page + batch_size))
                 logger.debug(f"Coletando lote de páginas: {batch_pages} para {mes}/{ano}")
 
-                tasks = [
-                    self.client.get_remuneracao(ano=ano, mes=mes, page=p, size=size)
-                    for p in batch_pages
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                batch_requests = []
+                for p in batch_pages:
+
+                    async def get_with_retry(page_to_get=p):
+                        max_retries = 3
+                        backoff = 1
+                        for attempt in range(max_retries):
+                            try:
+                                return await self.client.get_remuneracao(
+                                    ano=ano, mes=mes, page=page_to_get, size=size
+                                )
+                            except Exception as e:
+                                if attempt == max_retries - 1:
+                                    raise e
+                                logger.warning(
+                                    f"Tentativa {attempt + 1} falhou para pág {page_to_get} ({mes}/{ano}): {repr(e)}. "
+                                    f"Retentando em {backoff}s..."
+                                )
+                                await asyncio.sleep(backoff)
+                                backoff *= 2
+
+                    batch_requests.append(get_with_retry(p))
+
+                results = await asyncio.gather(*batch_requests, return_exceptions=True)
 
                 all_records = []
                 total_new_pages = 0
 
                 for i, data in enumerate(results):
                     if isinstance(data, Exception):
-                        error_msg = str(data)
-                        logger.error(f"Erro ao coletar página {batch_pages[i]}: {error_msg}")
+                        error_type = type(data).__name__
+                        error_msg = str(data) or repr(data)
+                        logger.error(
+                            f"Erro fatal após retentativas na página {batch_pages[i]} ({mes}/{ano}): [{error_type}] {error_msg}"
+                        )
                         stop_collection = True
                         monthly_exec.status = "error"
-                        monthly_exec.error_message = error_msg
+                        monthly_exec.error_message = f"[{error_type}] {error_msg}"
                         break
 
                     content = data.get("content", [])
