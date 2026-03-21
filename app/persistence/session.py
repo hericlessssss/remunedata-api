@@ -18,6 +18,9 @@ async_engine = create_async_engine(
     echo=settings.is_development,
     future=True,
     pool_pre_ping=True,
+    # Aumentar pool para suportar cargas do coletor
+    pool_size=10,
+    max_overflow=20,
 )
 
 # Factory para gerar AsyncSession

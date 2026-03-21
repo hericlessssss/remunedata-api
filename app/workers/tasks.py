@@ -12,7 +12,7 @@ from app.collector.monthly import MonthlyCollector
 from app.core.celery_app import celery_app
 from app.infra.transparencia_client import TransparenciaClient
 from app.persistence.repositories import ExecutionRepository, RemunerationRepository
-from app.persistence.session import async_session_maker
+from app.persistence.session import async_engine, async_session_maker
 
 logger = get_task_logger(__name__)
 
@@ -43,9 +43,19 @@ def collect_annual_task(self, ano: int):
 
     try:
         # Celery roda em processos síncronos, precisamos do loop para o código async
-        task_result = asyncio.run(_run())
-        logger.info(f"Tarefa de coleta anual {ano} concluída com status: {task_result['status']}")
-        return task_result
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            task_result = loop.run_until_complete(_run())
+            logger.info(
+                f"Tarefa de coleta anual {ano} concluída com status: {task_result['status']}"
+            )
+            return task_result
+        finally:
+            # Crucial: Limpar todas as conexões do pool ANTES de fechar o loop
+            # Isso evita o erro "Event loop is closed" em tarefas subsequentes
+            loop.run_until_complete(async_engine.dispose())
+            loop.close()
     except Exception as e:
         from celery.exceptions import SoftTimeLimitExceeded
 
@@ -106,4 +116,11 @@ def retry_monthly_task(self, execution_id: int, mes: str):
 
             return {"status": result.status, "execution_id": execution_id, "mes": mes}
 
-    return asyncio.run(_run())
+    # Garantir loop isolado e limpeza do pool para evitar conflitos no Celery
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_run())
+    finally:
+        loop.run_until_complete(async_engine.dispose())
+        loop.close()
