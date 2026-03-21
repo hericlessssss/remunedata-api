@@ -40,3 +40,17 @@ app.mount("/dashboard", StaticFiles(directory="app/static", html=True), name="st
 async def health_check():
     """Endpoint de health check para monitoramento."""
     return {"status": "ok", "env": settings.app_env, "version": "0.1.0"}
+
+
+@app.get("/debug-routes")
+async def debug_routes():
+    """Lista todas as rotas registradas no app (Apenas para debug)."""
+    from starlette.routing import Mount, Route
+
+    routes = []
+    for route in app.routes:
+        if isinstance(route, Route):
+            routes.append({"path": route.path, "name": route.name, "methods": list(route.methods)})
+        elif isinstance(route, Mount):
+            routes.append({"path": route.path, "name": route.name, "methods": ["MOUNT"]})
+    return routes
