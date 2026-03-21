@@ -63,6 +63,25 @@ async def get_execution(
     return record
 
 
+@router.post("/{execution_id}/retry-month")
+async def retry_execution_month(
+    execution_id: int,
+    mes: str = Query(..., pattern="^(0[1-9]|1[0-2])$"),
+    repo: ExecutionRepository = Depends(get_execution_repository),
+):
+    """Re-dispara a coleta para um mês específico de uma execução anual."""
+    record = await repo.get_annual(execution_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Execução não encontrada")
+
+    # Enfileirar tarefa individual de retentativa
+    from app.workers.tasks import retry_monthly_task
+
+    retry_monthly_task.delay(execution_id, mes)
+
+    return {"message": f"Retentativa do mês {mes} para execução {execution_id} enfileirada."}
+
+
 @router.get("/{id}/export")
 async def export_execution(
     id: int,

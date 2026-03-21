@@ -75,3 +75,35 @@ def sync_recent_years_task():
     collect_annual_task.delay(current_year)
 
     return {"status": "queued", "years": [previous_year, current_year]}
+
+
+@celery_app.task(name="retry_monthly_task", bind=True)
+def retry_monthly_task(self, execution_id: int, mes: str):
+    """
+    Tarefa Celery para re-executar a coleta de um mês específico que falhou.
+    """
+    logger.info(f"Iniciando retentativa manual: Mês {mes} (Execução: {execution_id})")
+
+    async def _run():
+        async with async_session_maker() as session:
+            client = TransparenciaClient()
+            exec_repo = ExecutionRepository(session)
+            rem_repo = RemunerationRepository(session)
+
+            # 1. Carregar o registro anual para obter o ano
+            annual = await exec_repo.get_annual(execution_id)
+            if not annual:
+                raise ValueError(f"Execução anual {execution_id} não encontrada.")
+
+            # 2. Executar coleta apenas daquele mês
+            collector = MonthlyCollector(client, exec_repo, rem_repo)
+            result = await collector.collect(
+                ano=annual.ano_exercicio, mes=mes, annual_execution_id=execution_id
+            )
+
+            # 3. Sincronizar status anual
+            await exec_repo.sync_annual_stats(execution_id)
+
+            return {"status": result.status, "execution_id": execution_id, "mes": mes}
+
+    return asyncio.run(_run())
