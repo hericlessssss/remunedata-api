@@ -3,7 +3,7 @@ tests/test_coverage_boost_v2.py
 Testes focados em cobrir linhas não atingidas pelos testes anteriores.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -19,7 +19,7 @@ async def test_trigger_collection_idempotency(db_session, client, override_get_s
     await db_session.commit()
 
     response = await client.post("/api/v1/executions/?ano=2024&force=false")
-    
+
     assert response.status_code == 201
     assert response.json()["status"] == "running"
 
@@ -79,7 +79,7 @@ async def test_export_execution_logic(db_session, client, override_get_session):
         nome_servidor="EXPORT TESTER",
         valor_bruto=1000.0,
         valor_liquido=800.0,
-        raw_payload_json="{}"
+        raw_payload_json="{}",
     )
     db_session.add(rem)
     await db_session.commit()
@@ -98,19 +98,19 @@ async def test_export_execution_logic(db_session, client, override_get_session):
 async def test_worker_wrappers_coverage(mock_run):
     """Testa que os wrappers Celery chamam o asyncio.run para cobrir essas linhas."""
     from app.workers.tasks import collect_annual_task, retry_monthly_task
-    
-    # Simula chamada da task anual. 
-    # Chamando .run() sem passar self, pois o Celery TaskWrapper deve injetar se necessário 
+
+    # Simula chamada da task anual.
+    # Chamando .run() sem passar self, pois o Celery TaskWrapper deve injetar se necessário
     # mas o erro '3 were given' sugere que está injetando AUTOMATICAMENTE.
     # Vamos tentar passar apenas os argumentos de negócio.
     try:
         collect_annual_task.run(2024)
-    except:
+    except Exception:
         pass
-    
+
     try:
         retry_monthly_task.run(1, "01")
-    except:
+    except Exception:
         pass
     assert True
 
@@ -119,28 +119,31 @@ async def test_worker_wrappers_coverage(mock_run):
 async def test_sync_stats_branches(db_session):
     """Cobre todos os status do sync_annual_stats (success, partial)."""
     from app.persistence.repositories import ExecutionRepository
+
     repo = ExecutionRepository(db_session)
-    
+
     # 1. Partial Success
     annual = ExecutionAnnual(ano_exercicio=2024, status="running")
     db_session.add(annual)
     await db_session.commit()
     await db_session.refresh(annual)
-    
-    monthly = ExecutionMonthly(execution_id=annual.id, mes_referencia="01", status="success", registros_coletados=10)
+
+    monthly = ExecutionMonthly(
+        execution_id=annual.id, mes_referencia="01", status="success", registros_coletados=10
+    )
     db_session.add(monthly)
     await db_session.commit()
-    
+
     await repo.sync_annual_stats(annual.id)
     await db_session.refresh(annual)
     assert annual.status == "partial_success"
-    
+
     # 2. Total Success (12 meses)
     for i in range(2, 13):
         m = ExecutionMonthly(execution_id=annual.id, mes_referencia=f"{i:02d}", status="success")
         db_session.add(m)
     await db_session.commit()
-    
+
     await repo.sync_annual_stats(annual.id)
     await db_session.refresh(annual)
     assert annual.status == "success"
@@ -154,9 +157,9 @@ async def test_annual_collector_orchestration_failure_branch(db_session):
 
     mock_monthly = AsyncMock()
     mock_monthly.collect.side_effect = Exception("Falha Crítica")
-    
+
     repo = ExecutionRepository(db_session)
     collector = AnnualCollector(mock_monthly, repo)
-    
+
     res = await collector.run(2027)
     assert res.status == "error"
