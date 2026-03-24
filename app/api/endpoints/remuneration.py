@@ -3,19 +3,24 @@ app/api/endpoints/remuneration.py
 Endpoints para consulta de dados de remuneração coletados.
 """
 
-from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi_limiter.depends import RateLimiter
 
 from app.api.deps import get_remuneration_repository
 from app.api.schemas import PaginatedRemuneration
+from app.core.cache import RedisCache, get_cache
 from app.persistence.repositories import RemunerationRepository
 
 router = APIRouter()
 
 
-@router.get("/", response_model=PaginatedRemuneration)
+@router.get(
+    "/",
+    response_model=PaginatedRemuneration,
+    dependencies=[Depends(RateLimiter(times=20, seconds=60))],
+)
 async def search_remuneration(
     nome: Optional[str] = Query(None, description="Parte do nome do servidor"),
     cpf: Optional[str] = Query(None, description="CPF do servidor (exato)"),
@@ -38,34 +43,41 @@ async def search_remuneration(
     return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
 
 
-class SummaryCache:
-    data: Optional[dict] = None
-    expires_at: datetime = datetime.min
-    ano: Optional[int] = None
+@router.get("/distinct-filters")
+async def get_distinct_filters(
+    repo: RemunerationRepository = Depends(get_remuneration_repository),
+    cache: RedisCache = Depends(get_cache),
+):
+    """Retorna listas únicas de cargos e órgãos para preencher os selects do frontend."""
+    cache_key = "remuneration:distinct_filters"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
+
+    # Busca do banco
+    data = await repo.get_distinct_filters()
+
+    # Cache de 24 horas (valores mudam pouco)
+    await cache.set(cache_key, data, ttl=86400)
+    return data
 
 
-summary_cache = SummaryCache()
-
-
-@router.get("/summary")
+@router.get("/summary", dependencies=[Depends(RateLimiter(times=30, seconds=60))])
 async def get_summary(
     ano: Optional[int] = Query(None),
     repo: RemunerationRepository = Depends(get_remuneration_repository),
+    cache: RedisCache = Depends(get_cache),
 ):
-    """Retorna dados agregados para o dashboard com cache de 60 segundos."""
-    now = datetime.now()
-
-    # Se tiver cache válido no mesmo ano, retorna
-    if summary_cache.data and summary_cache.expires_at > now:
-        if summary_cache.ano == ano:
-            return summary_cache.data
+    """Retorna dados agregados para o dashboard com cache Redis de 10 minutos."""
+    cache_key = f"remuneration:summary:{ano or 'all'}"
+    cached = await cache.get(cache_key)
+    if cached:
+        return cached
 
     # Caso contrário, busca do banco
     data = await repo.get_summary(ano=ano)
 
-    # Atualiza cache
-    summary_cache.data = data
-    summary_cache.ano = ano
-    summary_cache.expires_at = now + timedelta(seconds=60)
+    # Atualiza cache (10 minutos)
+    await cache.set(cache_key, data, ttl=600)
 
     return data

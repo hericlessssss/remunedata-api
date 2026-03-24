@@ -3,8 +3,8 @@ app/api/deps.py
 Dependências do FastAPI para injeção de repositórios e sessão de banco.
 """
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token

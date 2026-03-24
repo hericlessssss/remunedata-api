@@ -6,12 +6,20 @@ Usa respx para mockar as requisições HTTP.
 
 import pytest
 import respx
+from circuitbreaker import CircuitBreakerMonitor
 from httpx import HTTPStatusError, Response, TimeoutException
 
 from app.core.config import get_settings
 from app.infra.transparencia_client import TransparenciaClient
 
 settings = get_settings()
+
+
+@pytest.fixture(autouse=True)
+def reset_breakers():
+    """Garante que o estado do Circuit Breaker seja resetado entre os testes."""
+    for breaker in CircuitBreakerMonitor.get_circuits():
+        breaker.reset()
 
 
 @pytest.fixture

@@ -149,8 +149,12 @@ class RemunerationRepository:
         count_stmt = select(func.count()).select_from(RemunerationCollected)
 
         if nome:
-            stmt = stmt.where(RemunerationCollected.nome_servidor.ilike(f"%{nome}%"))
-            count_stmt = count_stmt.where(RemunerationCollected.nome_servidor.ilike(f"%{nome}%"))
+            stmt = stmt.where(
+                func.unaccent(RemunerationCollected.nome_servidor).ilike(func.unaccent(f"%{nome}%"))
+            )
+            count_stmt = count_stmt.where(
+                func.unaccent(RemunerationCollected.nome_servidor).ilike(func.unaccent(f"%{nome}%"))
+            )
         if cpf:
             stmt = stmt.where(RemunerationCollected.cpf_servidor == cpf)
             count_stmt = count_stmt.where(RemunerationCollected.cpf_servidor == cpf)
@@ -161,11 +165,19 @@ class RemunerationRepository:
             stmt = stmt.where(RemunerationCollected.mes_referencia == mes)
             count_stmt = count_stmt.where(RemunerationCollected.mes_referencia == mes)
         if cargo:
-            stmt = stmt.where(RemunerationCollected.cargo.ilike(f"%{cargo}%"))
-            count_stmt = count_stmt.where(RemunerationCollected.cargo.ilike(f"%{cargo}%"))
+            stmt = stmt.where(
+                func.unaccent(RemunerationCollected.cargo).ilike(func.unaccent(f"%{cargo}%"))
+            )
+            count_stmt = count_stmt.where(
+                func.unaccent(RemunerationCollected.cargo).ilike(func.unaccent(f"%{cargo}%"))
+            )
         if orgao:
-            stmt = stmt.where(RemunerationCollected.nome_orgao.ilike(f"%{orgao}%"))
-            count_stmt = count_stmt.where(RemunerationCollected.nome_orgao.ilike(f"%{orgao}%"))
+            stmt = stmt.where(
+                func.unaccent(RemunerationCollected.nome_orgao).ilike(func.unaccent(f"%{orgao}%"))
+            )
+            count_stmt = count_stmt.where(
+                func.unaccent(RemunerationCollected.nome_orgao).ilike(func.unaccent(f"%{orgao}%"))
+            )
 
         # Count total
         total_result = await self.session.execute(count_stmt)
@@ -175,6 +187,29 @@ class RemunerationRepository:
         stmt = stmt.order_by(RemunerationCollected.nome_servidor).limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         return list(result.scalars().all()), total
+
+    async def get_distinct_filters(self) -> dict[str, list[str]]:
+        """Busca valores únicos de cargo e órgão para preencher selects no frontend."""
+        stmt_cargos = (
+            select(RemunerationCollected.cargo)
+            .where(RemunerationCollected.cargo.isnot(None))
+            .distinct()
+            .order_by(RemunerationCollected.cargo)
+        )
+        stmt_orgaos = (
+            select(RemunerationCollected.nome_orgao)
+            .where(RemunerationCollected.nome_orgao.isnot(None))
+            .distinct()
+            .order_by(RemunerationCollected.nome_orgao)
+        )
+
+        res_cargos = await self.session.execute(stmt_cargos)
+        res_orgaos = await self.session.execute(stmt_orgaos)
+
+        return {
+            "cargos": [str(c) for c in res_cargos.scalars().all() if c],
+            "orgaos": [str(o) for o in res_orgaos.scalars().all() if o],
+        }
 
     async def save_batch(self, items: list[RemunerationCollected]):
         """Salva uma lista de registros em lote."""

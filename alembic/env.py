@@ -9,8 +9,9 @@ que é o que o Alembic requer (não suporta asyncpg diretamente).
 import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 # Objeto de configuração Alembic (acesso ao alembic.ini)
 config = context.config
@@ -28,9 +29,11 @@ if database_url_sync:
 # target_metadata: apontar para o MetaData dos models para autogenerate.
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.persistence.models import Base
+
 target_metadata = Base.metadata
 
 

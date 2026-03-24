@@ -7,6 +7,7 @@ Usa httpx para requisições assíncronas.
 from typing import Any, Dict, Optional
 
 import httpx
+from circuitbreaker import circuit
 
 from app.core.config import get_settings
 from app.core.logging import get_logger, log_extra
@@ -34,6 +35,7 @@ class TransparenciaClient:
             ),
         }
 
+    @circuit(failure_threshold=5, recovery_timeout=60, expected_exception=httpx.HTTPStatusError)
     async def get_remuneracao(
         self,
         ano: int,

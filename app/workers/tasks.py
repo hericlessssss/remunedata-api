@@ -9,6 +9,7 @@ from celery.utils.log import get_task_logger
 
 from app.collector.annual import AnnualCollector
 from app.collector.monthly import MonthlyCollector
+from app.core.cache import cache
 from app.core.celery_app import celery_app
 from app.infra.transparencia_client import TransparenciaClient
 from app.persistence.repositories import ExecutionRepository, RemunerationRepository
@@ -37,6 +38,11 @@ def collect_annual_task(self, ano: int):
 
             # Executar
             result = await annual_collector.run(ano)
+
+            # Limpar cache do dashboard/filtros após sucesso
+            if result.status in ["success", "partial_success"]:
+                logger.info(f"Limpando cache de remuneração para o ano {ano}")
+                await cache.clear_prefix("remuneration:")
 
             # Extrair dados básicos antes de fechar a sessão/loop para evitar DetachedInstanceError
             return {"status": result.status, "execution_id": result.id}
@@ -113,6 +119,9 @@ def retry_monthly_task(self, execution_id: int, mes: str):
 
             # 3. Sincronizar status anual
             await exec_repo.sync_annual_stats(execution_id)
+
+            # Limpar cache
+            await cache.clear_prefix("remuneration:")
 
             return {"status": result.status, "execution_id": execution_id, "mes": mes}
 

@@ -1,11 +1,11 @@
-"""
-app/main.py
-Ponto de entrada da aplicação FastAPI.
-"""
+from contextlib import asynccontextmanager
 
+import redis.asyncio as redis
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi_limiter import FastAPILimiter
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -13,10 +13,33 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Configuração do Sentry se DSN existir
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.app_env,
+        traces_sample_rate=1.0 if settings.is_development else 0.1,
+    )
+    logger.info("Sentry inicializado com sucesso.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lógica executada no ciclo de vida da aplicação."""
+    # Inicializar Rate Limiter (Redis)
+    r = redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+    await FastAPILimiter.init(r)
+    logger.info("Rate Limiter (FastAPI-Limiter) inicializado.")
+    yield
+    # Limpeza se necessário
+    await r.close()
+
+
 app = FastAPI(
     title="DF Remuneration Collector API",
     description="API para coleta e consulta de remuneração dos servidores do DF",
-    version="0.1.2",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 # Configurar CORS

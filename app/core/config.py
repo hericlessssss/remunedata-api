@@ -4,6 +4,8 @@ Configuração central da aplicação via Pydantic BaseSettings.
 Lê variáveis de ambiente (ou arquivo .env) e valida os valores.
 """
 
+from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,6 +40,12 @@ class Settings(BaseSettings):
     )
     supabase_jwt_secret: str = Field(
         description="Segredo JWT para validação de tokens (HS256)",
+    )
+
+    # Sentry
+    sentry_dsn: Optional[str] = Field(
+        default=None,
+        description="DSN do projeto Sentry para rastreamento de erros",
     )
 
     # Redis

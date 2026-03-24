@@ -3,7 +3,10 @@ tests/conftest.py
 Fixtures compartilhadas pelos testes da aplicação.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
+from circuitbreaker import CircuitBreakerMonitor
 
 
 @pytest.fixture(autouse=True)
@@ -29,6 +32,56 @@ def set_test_env(monkeypatch):
         monkeypatch.setenv("LOG_LEVEL", "WARNING")
 
 
+@pytest.fixture(autouse=True)
+async def init_test_limiter(request):
+    """
+    Inicializa o FastAPILimiter com um Mock de Redis para evitar erros de loop
+    e dependência de serviço externo em testes unitários/integração.
+    """
+    if "test_resilience.py" in request.node.fspath.strpath:
+        yield
+        return
+
+    from fastapi_limiter import FastAPILimiter
+
+    mock_redis = AsyncMock()
+    # FastAPILimiter v0.1.6 usa evalsha para checar o rate limit
+    mock_redis.evalsha = AsyncMock(return_value=0)
+    mock_redis.script_load = AsyncMock(return_value="mock_sha")
+
+    await FastAPILimiter.init(mock_redis)
+    yield
+
+
+@pytest.fixture(autouse=True)
+def reset_breakers():
+    """Garante que o estado do Circuit Breaker seja resetado entre os testes."""
+    for breaker in CircuitBreakerMonitor.get_circuits():
+        breaker.reset()
+
+
+@pytest.fixture(autouse=True)
+def override_auth(request):
+    """
+    Mocka a autenticação globalmente para todos os testes,
+    EXCETO para os testes de autenticação propriamente ditos.
+    """
+    from app.api.deps import get_current_user
+    from app.main import app
+
+    # Se o teste estiver em test_auth.py, não mockamos para validar a lógica real
+    if "test_auth.py" in request.node.fspath.strpath:
+        yield
+        return
+
+    async def _get_current_user_override():
+        return {"email": "test@example.com", "sub": "test-uuid", "aud": "authenticated"}
+
+    app.dependency_overrides[get_current_user] = _get_current_user_override
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+
+
 @pytest.fixture(scope="function")
 def db_engine():
     """Cria a engine assíncrona para a duração da sessão de testes."""
@@ -39,7 +92,6 @@ def db_engine():
     settings = get_settings()
     engine = create_async_engine(settings.database_url, future=True)
     yield engine
-    # Cleanup opcional
 
 
 @pytest.fixture
@@ -54,7 +106,6 @@ async def db_session(db_engine):
     )
 
     async with session_factory() as session:
-        # Limpar o banco antes de cada teste para garantir isolamento (Doc item 15)
         from sqlalchemy import text
 
         await session.execute(

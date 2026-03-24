@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.persistence.models import ExecutionAnnual, ExecutionMonthly, RemunerationCollected
-from app.persistence.session import async_session_maker
 
 
 @pytest.mark.asyncio
@@ -35,16 +34,15 @@ async def test_model_instantiation():
 
 
 @pytest.mark.asyncio
-async def test_database_connection():
+async def test_database_connection(db_session: AsyncSession):
     """
     Teste de integração básico: verifica se consegue conectar ao banco
     e executar uma query simples.
     """
-    async with async_session_maker() as session:
-        assert isinstance(session, AsyncSession)
-        # Executa uma query simples que não depende de dados
-        result = await session.execute(select(1))
-        assert result.scalar() == 1
+    assert isinstance(db_session, AsyncSession)
+    # Executa uma query simples que não depende de dados
+    result = await db_session.execute(select(1))
+    assert result.scalar() == 1
 
 
 @pytest.mark.asyncio

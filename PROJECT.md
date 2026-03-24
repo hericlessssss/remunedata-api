@@ -179,6 +179,8 @@ docker compose down -v
 | 18 — Estabilização Final | Fix de Sessão (Detachment) e Retomada 2024 | Concluída |
 | 18 — Performance & Integridade | Coleta Nitro (Async Batching) e Purge Global | Concluída |
 | 19 — Autenticação | Integração Supabase Auth e Proteção de Rotas | Concluída |
+| 20 — Estabilização & Busca | Busca Unaccent (Acentos) e Otimização de Filtros | Concluída |
+| 21 — Camada de Performance | Integração Redis Cache para Dashboard e Filtros | Concluída |
 
 ---
 
@@ -495,4 +497,9 @@ A autenticação é feita via Supabase Auth (JWT).
 - **Backend:** Validação de tokens `HS256` usando o `SUPABASE_JWT_SECRET`.
 - **Dependência:** `get_current_user` em `app/api/deps.py`.
 - **Proteção:** Todos os endpoints sob `/api/v1` exigem o header `Authorization: Bearer <token>`, exceto o `/health` que permanece público.
+
+### Cache & Performance
+- **Redis:** Utilizado para cachear resultados pesados (Summary, Filtros Dinâmicos).
+- **TTL:** 10 min para Summary, 24h para Filtros.
+- **Invalidação:** Cache é limpo automaticamente ao final de cada ciclo de coleta bem-sucedido.
 

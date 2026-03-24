@@ -3,9 +3,11 @@ app/core/auth.py
 Lógica de validação de tokens JWT emitidos pelo Supabase.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 import jwt
 from fastapi import HTTPException, status
+
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -13,20 +15,18 @@ logger = get_logger(__name__)
 
 ALGORITHM = "HS256"
 
+
 def verify_token(token: str) -> Dict[str, Any]:
     """
     Decodifica e valida o JWT do Supabase usando o Segredo JWT (HS256).
-    
+
     Supabase usa tokens assinados com o Segredo configurado no dashboard.
     O 'aud' do token costuma ser 'authenticated'.
     """
     try:
         # Nota: O Supabase emite tokens com audiência 'authenticated' por padrão
         payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=[ALGORITHM],
-            audience="authenticated"
+            token, settings.supabase_jwt_secret, algorithms=[ALGORITHM], audience="authenticated"
         )
         return payload
     except jwt.ExpiredSignatureError:
