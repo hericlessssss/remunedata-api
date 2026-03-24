@@ -10,7 +10,6 @@ import pytest
 
 from app.persistence.models import SubscriptionPlan, UserSubscription
 
-
 # ────────────────────────────────────────────────────────
 # Fixtures de plano e assinatura
 # ────────────────────────────────────────────────────────
@@ -436,7 +435,6 @@ async def test_require_subscription_blocks_without_sub(
 ):
     """require_active_subscription retorna 403 quando usuário não tem assinatura."""
     from app.api.deps import get_session, require_active_subscription
-
     from app.main import app
 
     async def _get_session_override():
@@ -464,7 +462,6 @@ async def test_require_subscription_dep_no_sub(client, db_session, override_get_
 
     from sqlalchemy import select
 
-    from app.api.deps import require_active_subscription
     from app.persistence.models import UserSubscription
 
     # Verificar que não há assinatura ativa

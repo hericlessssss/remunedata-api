@@ -12,7 +12,6 @@ import pytest
 
 from app.infra.abacatepay_client import AbacatePayClient
 
-
 # ────────────────────────────────────────────────────────
 # Testes do AbacatePayClient
 # ────────────────────────────────────────────────────────

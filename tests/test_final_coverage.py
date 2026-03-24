@@ -4,16 +4,11 @@ Bateria massiva de testes para atingir cobertura >90%, focando em
 executions (idempotência, exportação XLSX/CSV, 404s) e subscriptions (edge cases).
 """
 
-import io
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import pandas as pd
 import pytest
-from fastapi import HTTPException
 
-from sqlalchemy import select
-from app.persistence.models import ExecutionAnnual, RemunerationCollected, SubscriptionPlan, UserSubscription
-
+from app.persistence.models import ExecutionAnnual, RemunerationCollected
 
 # ────────────────────────────────────────────────────────
 # Testes de Executions (app/api/endpoints/executions.py)
@@ -222,8 +217,7 @@ async def test_webhook_paid_no_sub_found(client):
 @pytest.mark.asyncio
 async def test_worker_tasks_logic_coverage(db_session):
     """Testa a lógica interna das tasks do Celery para cobertura de branches."""
-    from app.workers.tasks import collect_annual_task, retry_monthly_task
-    
+
     # Criar dados mínimos
     annual = ExecutionAnnual(ano_exercicio=2026, status="running")
     db_session.add(annual)
@@ -233,8 +227,8 @@ async def test_worker_tasks_logic_coverage(db_session):
     # Nota: Como as tasks usam async_session_maker real, elas vão tentar conectar ao banco de testes.
     # Mas como rodamos via pytest com o mesmo banco, deve funcionar se passarmos os IDs certos.
     # No entanto, collect_annual_task(ano) busca por ano.
-    
-    with patch("app.workers.tasks.TransparenciaClient") as MockClient:
+
+    with patch("app.workers.tasks.TransparenciaClient"):
         # Apenas para cobertura de import e estrutura
         pass
 
@@ -245,17 +239,17 @@ async def test_repo_get_summary_coverage(db_session):
     """Testa get_summary do RemunerationRepository para cobertura de dashboard."""
     from app.persistence.models import ExecutionMonthly
     from app.persistence.repositories import RemunerationRepository
-    
+
     annual = ExecutionAnnual(ano_exercicio=2024, status="completed")
     db_session.add(annual)
     await db_session.commit()
-    
+
     monthly = ExecutionMonthly(execution_id=annual.id, mes_referencia="01", status="completed")
     db_session.add(monthly)
     await db_session.commit()
 
     repo = RemunerationRepository(db_session)
-    
+
     remu = RemunerationCollected(
         execution_id=annual.id,
         monthly_execution_id=monthly.id,
@@ -272,7 +266,7 @@ async def test_repo_get_summary_coverage(db_session):
     summary = await repo.get_summary()
     assert summary["total_servidores"] >= 1
     assert summary["total_gasto_bruto"] >= 2000.0
-    
+
     # Testar com filtro de ano
     summary_year = await repo.get_summary(ano=2024)
     assert summary_year["total_servidores"] >= 1
@@ -286,19 +280,18 @@ async def test_repo_get_summary_coverage(db_session):
 @pytest.mark.asyncio
 async def test_worker_collect_annual_exception_coverage(db_session):
     """Testa tratamento de erro na task collect_annual_task."""
-    from app.workers.tasks import collect_annual_task
-    
+
     # Mockar a session para falhar
     with patch("app.workers.tasks.async_session_maker") as mock_maker:
         mock_session = AsyncMock()
         mock_session.execute.side_effect = Exception("Task Crash")
         mock_maker.return_value.__aenter__.return_value = mock_session
-        
+
         # A task deve logar o erro e não propagar para não quebrar o worker
         # (Dependendo da implementação real do try/except interno)
         # Como não posso rodar o celery real aqui facilmente sem redis, chamamos a lógica interna se possível
         try:
              # Se collect_annual_task tiver um wrapper de erro, ele captura
              pass
-        except:
+        except Exception:
              pass
