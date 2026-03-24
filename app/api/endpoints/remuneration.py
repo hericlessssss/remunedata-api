@@ -11,6 +11,7 @@ from fastapi_limiter.depends import RateLimiter
 from app.api.deps import get_remuneration_repository
 from app.api.schemas import PaginatedRemuneration
 from app.core.cache import RedisCache, get_cache
+from app.core.config import settings
 from app.persistence.repositories import RemunerationRepository
 
 router = APIRouter()
@@ -62,7 +63,18 @@ async def get_distinct_filters(
     return data
 
 
-@router.get("/summary", dependencies=[Depends(RateLimiter(times=30, seconds=60))])
+# Instância exposta para facilitar overrides em testes.
+# Em modo de teste, usamos um no-op para evitar conflitos de loop do singleton FastAPILimiter.
+async def _no_op_limiter(*args, **kwargs):
+    return None
+
+
+summary_limiter = (
+    _no_op_limiter if settings.app_env == "testing" else RateLimiter(times=30, seconds=60)
+)
+
+
+@router.get("/summary", dependencies=[Depends(summary_limiter)])
 async def get_summary(
     ano: Optional[int] = Query(None),
     repo: RemunerationRepository = Depends(get_remuneration_repository),
