@@ -1,39 +1,43 @@
-"""
-tests/conftest.py
-Fixtures compartilhadas pelos testes da aplicação.
-"""
-
+import asyncio
+import os
 from unittest.mock import AsyncMock
 
 import pytest
 from circuitbreaker import CircuitBreakerMonitor
+from fastapi_limiter import FastAPILimiter
+
+# Configuração de ambiente para testes (deve ocorrer antes de importar qualquer módulo do app)
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/df_remuneration_test")
+os.environ.setdefault("DATABASE_URL_SYNC", "postgresql+psycopg2://postgres:postgres@localhost:5432/df_remuneration_test")
+os.environ.setdefault("APP_ENV", "testing")
+os.environ.setdefault("LOG_LEVEL", "WARNING")
+os.environ.setdefault("SUPABASE_URL", "https://mock.supabase.co")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "mock-secret-for-tests-1234567890")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 
 
 @pytest.fixture(autouse=True)
 def set_test_env(monkeypatch):
     """
-    Garante variáveis de ambiente básicas para testes se não estiverem definidas.
+    Mantido para compatibilidade, mas o grosso agora está no topo do arquivo
+    para evitar erros de 'collection' do Pydantic.
     """
-    import os
+    pass
 
-    if not os.getenv("DATABASE_URL"):
-        monkeypatch.setenv(
-            "DATABASE_URL",
-            "postgresql+asyncpg://postgres:postgres@localhost:5432/df_remuneration_test",
-        )
-    if not os.getenv("DATABASE_URL_SYNC"):
-        monkeypatch.setenv(
-            "DATABASE_URL_SYNC",
-            "postgresql+psycopg2://postgres:postgres@localhost:5432/df_remuneration_test",
-        )
-    if not os.getenv("APP_ENV"):
-        monkeypatch.setenv("APP_ENV", "testing")
-    if not os.getenv("LOG_LEVEL"):
-        monkeypatch.setenv("LOG_LEVEL", "WARNING")
-    if not os.getenv("SUPABASE_URL"):
-        monkeypatch.setenv("SUPABASE_URL", "https://mock.supabase.co")
-    if not os.getenv("SUPABASE_JWT_SECRET"):
-        monkeypatch.setenv("SUPABASE_JWT_SECRET", "mock-secret-for-tests-1234567890")
+
+@pytest.fixture(autouse=True)
+async def clear_limiter_state():
+    """
+    Garante que o estado global do FastAPILimiter seja limpo antes de cada teste.
+    Isso evita o erro 'attached to a different loop' ao isolar os singletons.
+    """
+    FastAPILimiter.redis = None
+    FastAPILimiter.prefix = None
+    FastAPILimiter.identifier = None
+    FastAPILimiter.http_callback = None
+    yield
+    # Limpeza também após o teste
+    FastAPILimiter.redis = None
 
 
 @pytest.fixture(autouse=True)
@@ -43,10 +47,9 @@ async def init_test_limiter(request):
     e dependência de serviço externo em testes unitários/integração.
     """
     if "test_resilience.py" in request.node.fspath.strpath:
+        # O teste de resiliência cuidará de sua própria inicialização (com Redis real ou mock específico)
         yield
         return
-
-    from fastapi_limiter import FastAPILimiter
 
     mock_redis = AsyncMock()
     # FastAPILimiter v0.1.6 usa evalsha para checar o rate limit
