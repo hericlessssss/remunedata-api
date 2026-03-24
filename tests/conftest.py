@@ -30,6 +30,10 @@ def set_test_env(monkeypatch):
         monkeypatch.setenv("APP_ENV", "testing")
     if not os.getenv("LOG_LEVEL"):
         monkeypatch.setenv("LOG_LEVEL", "WARNING")
+    if not os.getenv("SUPABASE_URL"):
+        monkeypatch.setenv("SUPABASE_URL", "https://mock.supabase.co")
+    if not os.getenv("SUPABASE_JWT_SECRET"):
+        monkeypatch.setenv("SUPABASE_JWT_SECRET", "mock-secret-for-tests-1234567890")
 
 
 @pytest.fixture(autouse=True)
