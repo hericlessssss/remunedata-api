@@ -86,6 +86,24 @@ def override_auth(request):
     app.dependency_overrides.pop(get_current_user, None)
 
 
+@pytest.fixture(scope="session", autouse=True)
+async def create_test_tables():
+    """
+    Garante que todas as tabelas existem no banco de testes (incluindo as novas).
+    Usa create_all para criar tabelas faltantes sem sobrescrever as existentes.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from app.core.config import get_settings
+    from app.persistence.models import Base
+
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url, future=True)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+    await engine.dispose()
+
+
 @pytest.fixture(scope="function")
 def db_engine():
     """Cria a engine assíncrona para a duração da sessão de testes."""
@@ -113,7 +131,10 @@ async def db_session(db_engine):
         from sqlalchemy import text
 
         await session.execute(
-            text("TRUNCATE execution_annual, execution_monthly, remuneration_collected CASCADE")
+            text(
+                "TRUNCATE execution_annual, execution_monthly, remuneration_collected, "
+                "user_subscription, subscription_plan CASCADE"
+            )
         )
         await session.commit()
 
@@ -148,3 +169,13 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture
+def valid_token_headers():
+    """
+    Retorna headers de autenticação com token JWT mock.
+    O override_auth já substitui get_current_user, então qualquer token funciona.
+    O header é necessário para o HTTPBearer não rejeitar a requisição antes do override.
+    """
+    return {"Authorization": "Bearer mock-valid-token-for-tests"}

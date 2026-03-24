@@ -36,10 +36,68 @@ async def lifespan(app: FastAPI):
         logger.warning(
             f"Rate Limiter não pôde ser inicializado (Redis): {e}. Funcionando sem rate limit."
         )
+
+    # Seed dos planos de assinatura
+    await _seed_subscription_plans()
+
     yield
+
     # Limpeza se necessário
     if r:
         await r.aclose()
+
+
+async def _seed_subscription_plans():
+    """Insere os planos de assinatura padrão se ainda não existirem (idempotente)."""
+    from sqlalchemy import select
+
+    from app.persistence.models import SubscriptionPlan
+
+    plans = [
+        {
+            "slug": "essencial",
+            "name": "Plano Essencial",
+            "description": (
+                "Acesso completo ao inventário de remuneração 2020–2026 "
+                "com atualizações diárias. Válido por 30 dias."
+            ),
+            "price_brl": 6.99,
+            "duration_days": 30,
+        },
+        {
+            "slug": "profissional",
+            "name": "Plano Profissional",
+            "description": (
+                "Tudo do Essencial + exportações ilimitadas, sem rate-limit. Válido por 90 dias."
+            ),
+            "price_brl": 17.99,
+            "duration_days": 90,
+        },
+        {
+            "slug": "anual",
+            "name": "Plano Anual",
+            "description": (
+                "Tudo do Profissional + acesso prioritário e suporte dedicado. "
+                "Melhor custo-benefício. Válido por 365 dias."
+            ),
+            "price_brl": 49.99,
+            "duration_days": 365,
+        },
+    ]
+
+    try:
+        from app.persistence.session import async_session_maker
+
+        async with async_session_maker() as session:
+            for plan_data in plans:
+                stmt = select(SubscriptionPlan).where(SubscriptionPlan.slug == plan_data["slug"])
+                result = await session.execute(stmt)
+                if not result.scalar_one_or_none():
+                    session.add(SubscriptionPlan(**plan_data))
+                    logger.info(f"Plano '{plan_data['slug']}' criado.")
+            await session.commit()
+    except Exception as e:
+        logger.warning(f"Seed de planos falhou (será tentado no próximo restart): {e}")
 
 
 app = FastAPI(

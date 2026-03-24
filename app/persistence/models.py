@@ -141,3 +141,64 @@ class RemunerationCollected(Base):
     # Relacionamentos
     annual_execution: Mapped["ExecutionAnnual"] = relationship(back_populates="remunerations")
     monthly_execution: Mapped["ExecutionMonthly"] = relationship(back_populates="remunerations")
+
+
+class SubscriptionPlan(Base):
+    """
+    Define os planos de assinatura disponíveis no RemuneData.
+    Populado via seed no startup da aplicação.
+    """
+
+    __tablename__ = "subscription_plan"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    price_brl: Mapped[float] = mapped_column(Float, nullable=False)
+    duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    subscriptions: Mapped[List["UserSubscription"]] = relationship(back_populates="plan")
+
+
+class UserSubscription(Base):
+    """
+    Registra as assinaturas dos usuários autenticados via Supabase.
+    O user_id corresponde ao campo 'sub' do JWT do Supabase.
+    """
+
+    __tablename__ = "user_subscription"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    plan_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("subscription_plan.id"), nullable=False
+    )
+
+    # Dados do pagamento AbacatePay
+    abacatepay_billing_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, unique=True, index=True
+    )
+    abacatepay_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Controle de status e validade
+    # Valores: pending | active | expired | canceled | refunded
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    plan: Mapped["SubscriptionPlan"] = relationship(back_populates="subscriptions")

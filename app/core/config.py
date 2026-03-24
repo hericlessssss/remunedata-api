@@ -88,6 +88,24 @@ class Settings(BaseSettings):
         description="Lista de origens permitidas para CORS (ex: ['https://remunedata.com.br'])",
     )
 
+    # AbacatePay
+    abacatepay_api_key: str = Field(
+        default="",
+        description="Bearer token da conta AbacatePay",
+    )
+    abacatepay_webhook_secret: str = Field(
+        default="",
+        description="Secret para validação dos webhooks da AbacatePay",
+    )
+    abacatepay_base_url: str = Field(
+        default="https://api.abacatepay.com/v1",
+        description="URL base da API AbacatePay",
+    )
+    front_url: str = Field(
+        default="https://remunedata.com.br",
+        description="URL base do frontend (usada nos redirects de pagamento)",
+    )
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

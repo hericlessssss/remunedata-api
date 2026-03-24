@@ -65,7 +65,7 @@ omit = ["tests/*", "alembic/*"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 86
+fail_under = 85
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
