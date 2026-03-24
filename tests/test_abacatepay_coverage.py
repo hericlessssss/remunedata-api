@@ -103,9 +103,12 @@ async def test_abacatepay_get_billing_success():
 @pytest.mark.asyncio
 async def test_abacatepay_http_error_propagates():
     """Cliente propaga HTTPStatusError quando backend retorna erro HTTP."""
-    with patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=httpx.HTTPStatusError(
-        "Error", request=MagicMock(), response=MagicMock()
-    ))):
+    with patch(
+        "httpx.AsyncClient.post",
+        new=AsyncMock(
+            side_effect=httpx.HTTPStatusError("Error", request=MagicMock(), response=MagicMock())
+        ),
+    ):
         client = AbacatePayClient()
         with pytest.raises(httpx.HTTPStatusError):
             await client.create_customer(

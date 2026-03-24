@@ -111,7 +111,10 @@ async def test_export_xlsx_success(client, db_session, override_get_session):
 
     response = await client.get(f"/api/v1/executions/{annual.id}/export?format=xlsx")
     assert response.status_code == 200
-    assert response.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert (
+        response.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     assert "attachment; filename=remuneracao_2024_exec_" in response.headers["content-disposition"]
 
 
@@ -161,7 +164,7 @@ async def test_checkout_invalid_payload(client, valid_token_headers):
     """POST /checkout com payload malformado retorna 422."""
     resp = await client.post(
         "/api/v1/subscriptions/checkout",
-        json={"plano": "invalido"}, # campo errado
+        json={"plano": "invalido"},  # campo errado
         headers=valid_token_headers,
     )
     assert resp.status_code == 422
@@ -178,7 +181,9 @@ async def test_webhook_no_event(client):
 
 
 @pytest.mark.asyncio
-async def test_subscription_me_refresh_failure(client, db_session, override_get_session, valid_token_headers):
+async def test_subscription_me_refresh_failure(
+    client, db_session, override_get_session, valid_token_headers
+):
     """GET /subscriptions/me testa resiliência caso o refresh da session falhe."""
     # Simular erro no refresh injetando uma sub que não está na session ou forçando erro
     with patch.object(db_session, "refresh", side_effect=Exception("Refresh Fail")):
@@ -194,10 +199,7 @@ async def test_subscription_me_refresh_failure(client, db_session, override_get_
 @pytest.mark.asyncio
 async def test_webhook_paid_no_sub_found(client):
     """POST /webhook status 200 mesmo se assinatura não for encontrada no banco."""
-    payload = {
-        "event": "billing.paid",
-        "data": {"id": "bill_inexistente"}
-    }
+    payload = {"event": "billing.paid", "data": {"id": "bill_inexistente"}}
     resp = await client.post("/api/v1/subscriptions/webhook?webhookSecret=", json=payload)
     assert resp.status_code == 200
     assert resp.json()["msg"] == "assinatura não encontrada"
@@ -234,6 +236,7 @@ async def test_worker_tasks_logic_coverage(db_session):
 
     assert True
 
+
 @pytest.mark.asyncio
 async def test_repo_get_summary_coverage(db_session):
     """Testa get_summary do RemunerationRepository para cobertura de dashboard."""
@@ -253,11 +256,15 @@ async def test_repo_get_summary_coverage(db_session):
     remu = RemunerationCollected(
         execution_id=annual.id,
         monthly_execution_id=monthly.id,
-        ano_exercicio=2024, mes_referencia="01",
-        codigo_identificacao="ID-SUM", codigo_matricula="M-SUM",
-        nome_servidor="SUM User", nome_orgao="ORGAO_SUM",
-        valor_liquido=1000.0, valor_bruto=2000.0,
-        raw_payload_json="{}"
+        ano_exercicio=2024,
+        mes_referencia="01",
+        codigo_identificacao="ID-SUM",
+        codigo_matricula="M-SUM",
+        nome_servidor="SUM User",
+        nome_orgao="ORGAO_SUM",
+        valor_liquido=1000.0,
+        valor_bruto=2000.0,
+        raw_payload_json="{}",
     )
     db_session.add(remu)
     await db_session.commit()
@@ -291,7 +298,7 @@ async def test_worker_collect_annual_exception_coverage(db_session):
         # (Dependendo da implementação real do try/except interno)
         # Como não posso rodar o celery real aqui facilmente sem redis, chamamos a lógica interna se possível
         try:
-             # Se collect_annual_task tiver um wrapper de erro, ele captura
-             pass
+            # Se collect_annual_task tiver um wrapper de erro, ele captura
+            pass
         except Exception:
-             pass
+            pass

@@ -93,7 +93,9 @@ async def test_list_plans_returns_active_plans(client, db_session, override_get_
 
 
 @pytest.mark.asyncio
-async def test_my_subscription_inactive(client, db_session, override_get_session, valid_token_headers):
+async def test_my_subscription_inactive(
+    client, db_session, override_get_session, valid_token_headers
+):
     """GET /me retorna inactive quando usuário não tem assinatura."""
     resp = await client.get("/api/v1/subscriptions/me", headers=valid_token_headers)
     assert resp.status_code == 200
@@ -101,7 +103,9 @@ async def test_my_subscription_inactive(client, db_session, override_get_session
 
 
 @pytest.mark.asyncio
-async def test_my_subscription_active(client, db_session, override_get_session, valid_token_headers):
+async def test_my_subscription_active(
+    client, db_session, override_get_session, valid_token_headers
+):
     """GET /me retorna active com validade quando usuário tem assinatura."""
     plan = await _create_plan(db_session)
     await _create_active_subscription(db_session, plan)
@@ -139,7 +143,9 @@ async def test_my_subscription_requires_auth(client, db_session, override_get_se
 
 
 @pytest.mark.asyncio
-async def test_checkout_plan_not_found(client, db_session, override_get_session, valid_token_headers):
+async def test_checkout_plan_not_found(
+    client, db_session, override_get_session, valid_token_headers
+):
     """POST /checkout com plano inválido retorna 404."""
     resp = await client.post(
         "/api/v1/subscriptions/checkout",
@@ -197,7 +203,9 @@ async def test_checkout_success(client, db_session, override_get_session, valid_
 
 
 @pytest.mark.asyncio
-async def test_checkout_already_subscribed(client, db_session, override_get_session, valid_token_headers):
+async def test_checkout_already_subscribed(
+    client, db_session, override_get_session, valid_token_headers
+):
     """POST /checkout com assinatura ativa retorna 409."""
     plan = await _create_plan(db_session)
     await _create_active_subscription(db_session, plan)
@@ -217,7 +225,9 @@ async def test_checkout_already_subscribed(client, db_session, override_get_sess
 
 
 @pytest.mark.asyncio
-async def test_checkout_abacatepay_error(client, db_session, override_get_session, valid_token_headers):
+async def test_checkout_abacatepay_error(
+    client, db_session, override_get_session, valid_token_headers
+):
     """POST /checkout com falha na AbacatePay retorna 502."""
     await _create_plan(db_session)
 
@@ -240,7 +250,9 @@ async def test_checkout_abacatepay_error(client, db_session, override_get_sessio
 
 
 @pytest.mark.asyncio
-async def test_checkout_billing_error(client, db_session, override_get_session, valid_token_headers):
+async def test_checkout_billing_error(
+    client, db_session, override_get_session, valid_token_headers
+):
     """POST /checkout com falha na criação da cobrança retorna 502."""
     await _create_plan(db_session)
     mock_customer = {"id": "cust_test_err"}
