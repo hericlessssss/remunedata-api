@@ -26,13 +26,20 @@ if settings.sentry_dsn:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lógica executada no ciclo de vida da aplicação."""
-    # Inicializar Rate Limiter (Redis)
-    r = redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
-    await FastAPILimiter.init(r)
-    logger.info("Rate Limiter (FastAPI-Limiter) inicializado.")
+    # Inicializar Rate Limiter (Redis) — falha não deve derrubar o app
+    r = None
+    try:
+        r = redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+        await FastAPILimiter.init(r)
+        logger.info("Rate Limiter (FastAPI-Limiter) inicializado.")
+    except Exception as e:
+        logger.warning(
+            f"Rate Limiter não pôde ser inicializado (Redis): {e}. Funcionando sem rate limit."
+        )
     yield
     # Limpeza se necessário
-    await r.close()
+    if r:
+        await r.aclose()
 
 
 app = FastAPI(

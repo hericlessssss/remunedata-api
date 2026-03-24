@@ -67,11 +67,15 @@ async def get_distinct_filters(
 async def summary_limiter(request=None, response=None):
     """
     Wrapper de rate-limiting para o endpoint /summary.
-    Em testes, o conftest.py faz o monkeypatch de RateLimiter.__call__,
-    tornando esta dependência um no-op seguro.
+    Tolerante a falha: se o Redis não estiver disponível, apenas ignora o rate-limit
+    em vez de retornar 500 e quebrar o CORS.
     """
-    limiter = RateLimiter(times=30, seconds=60)
-    await limiter(request=request, response=response)
+    try:
+        limiter = RateLimiter(times=30, seconds=60)
+        await limiter(request=request, response=response)
+    except Exception:
+        # FastAPILimiter não inicializado (Redis indisponível) — degrada graciosamente
+        pass
 
 
 @router.get("/summary", dependencies=[Depends(summary_limiter)])
