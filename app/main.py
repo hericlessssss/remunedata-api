@@ -103,7 +103,7 @@ async def _seed_subscription_plans():
 app = FastAPI(
     title="DF Remuneration Collector API",
     description="API para coleta e consulta de remuneração dos servidores do DF",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 

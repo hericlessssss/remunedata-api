@@ -267,9 +267,7 @@ async def test_require_active_subscription_raises_403(db_session, override_get_s
     """require_active_subscription levanta HTTPException 403 sem assinatura ativa."""
     from fastapi import HTTPException
 
-    from app.api.deps import get_session, require_active_subscription
-
-    mock_request = MagicMock()
+    from app.api.deps import require_active_subscription
 
     # Simular usuário sem assinatura
     user = {"sub": "user-sem-assinatura", "email": "no@sub.com"}
