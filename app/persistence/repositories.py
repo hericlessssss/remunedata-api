@@ -281,29 +281,6 @@ class RemunerationRepository:
             "top_orgaos": top_orgaos,
         }
 
-    async def get_distinct_filters(self) -> dict:
-        """Retorna listas únicas de cargos e órgãos para os selects do frontend."""
-        from sqlalchemy import distinct, func
-
-        stmt_cargos = (
-            select(distinct(RemunerationCollected.cargo))
-            .where(RemunerationCollected.cargo.isnot(None))
-            .order_by(RemunerationCollected.cargo)
-        )
-        stmt_orgaos = (
-            select(distinct(RemunerationCollected.nome_orgao))
-            .where(RemunerationCollected.nome_orgao.isnot(None))
-            .order_by(RemunerationCollected.nome_orgao)
-        )
-
-        res_cargos = await self.session.execute(stmt_cargos)
-        res_orgaos = await self.session.execute(stmt_orgaos)
-
-        return {
-            "cargos": [r[0] for r in res_cargos.all()],
-            "orgaos": [r[0] for r in res_orgaos.all()],
-        }
-
     async def delete_monthly_records(self, monthly_id: int):
         """Remove todos os registros de remuneração de uma execução mensal específica. (Obsoleto: use delete_records_by_period)"""
         from sqlalchemy import delete
