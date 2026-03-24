@@ -238,3 +238,120 @@ async def test_worker_tasks_edge_cases_coverage():
     with patch("app.workers.tasks.AnnualCollector") as m:
         m.return_value.run.side_effect = Exception("Erro Simulado")
         sync_recent_years_task()
+
+
+@pytest.mark.asyncio
+async def test_redis_cache_branches_coverage():
+    """Cobre os branches de erro e edge cases do RedisCache."""
+    from unittest.mock import AsyncMock
+
+    from app.core.cache import RedisCache
+
+    cache = RedisCache("redis://localhost:6379/0")
+
+    # Mockar o redis interno
+    mock_redis = AsyncMock()
+    cache._redis = mock_redis
+
+    # 1. get() com valor JSON válido
+    mock_redis.get = AsyncMock(return_value='{"key": "value"}')
+    result = await cache.get("test-key")
+    assert result == {"key": "value"}
+
+    # 2. get() com valor string simples (não-JSON)
+    mock_redis.get = AsyncMock(return_value="plain-string")
+    result = await cache.get("test-key2")
+    assert result == "plain-string"
+
+    # 3. get() com None (cache miss)
+    mock_redis.get = AsyncMock(return_value=None)
+    result = await cache.get("test-key3")
+    assert result is None
+
+    # 4. get() com erro de conexão
+    mock_redis.get = AsyncMock(side_effect=Exception("conn error"))
+    result = await cache.get("test-key4")
+    assert result is None
+
+    # 5. set() com valor primitivo (string)
+    mock_redis.set = AsyncMock()
+    await cache.set("test-str", "plain", ttl=60)
+    mock_redis.set.assert_called_once()
+
+    # 6. set() com dict (deve serializar JSON)
+    mock_redis.set = AsyncMock()
+    await cache.set("test-dict", {"a": 1}, ttl=60)
+    mock_redis.set.assert_called_once()
+
+    # 7. set() com erro
+    mock_redis.set = AsyncMock(side_effect=Exception("write error"))
+    await cache.set("test-err", {"x": 1})  # deve logar e não levantar
+
+    # 8. delete() sucesso
+    mock_redis.delete = AsyncMock()
+    await cache.delete("some-key")
+    mock_redis.delete.assert_called_once_with("some-key")
+
+    # 9. delete() com erro
+    mock_redis.delete = AsyncMock(side_effect=Exception("del error"))
+    await cache.delete("some-key")  # deve logar e não levantar
+
+    # 10. clear_prefix() com chaves
+    mock_redis.keys = AsyncMock(return_value=["prefix:a", "prefix:b"])
+    mock_redis.delete = AsyncMock()
+    await cache.clear_prefix("prefix:")
+    mock_redis.delete.assert_called_once()
+
+    # 11. clear_prefix() sem chaves
+    mock_redis.keys = AsyncMock(return_value=[])
+    mock_redis.delete = AsyncMock()
+    await cache.clear_prefix("empty:")
+    mock_redis.delete.assert_not_called()
+
+    # 12. clear_prefix() com erro
+    mock_redis.keys = AsyncMock(side_effect=Exception("keys error"))
+    await cache.clear_prefix("err:")  # deve logar e não levantar
+
+
+@pytest.mark.asyncio
+async def test_distinct_filters_endpoint_coverage(client, db_session, override_get_session):
+    """Cobre o endpoint /distinct-filters para aumentar a cobertura."""
+    # O endpoint deve retornar 200 mesmo com banco vazio
+    resp = await client.get("/api/v1/remuneration/distinct-filters")
+    assert resp.status_code == 200
+
+    # Com dados
+    from app.persistence.models import ExecutionAnnual, ExecutionMonthly
+
+    annual = ExecutionAnnual(ano_exercicio=2024, status="success")
+    db_session.add(annual)
+    await db_session.flush()
+
+    monthly = ExecutionMonthly(execution_id=annual.id, mes_referencia="01", status="success")
+    db_session.add(monthly)
+    await db_session.flush()
+
+    from app.persistence.models import RemunerationCollected
+
+    rem = RemunerationCollected(
+        execution_id=annual.id,
+        monthly_execution_id=monthly.id,
+        ano_exercicio=2024,
+        mes_referencia="01",
+        codigo_identificacao="DF1",
+        codigo_matricula="M1",
+        nome_servidor="SILVA",
+        cargo="ANALISTA",
+        nome_orgao="TCU",
+        valor_bruto=5000.0,
+        valor_liquido=4000.0,
+        raw_payload_json="{}",
+    )
+    db_session.add(rem)
+    await db_session.commit()
+
+    resp2 = await client.get("/api/v1/remuneration/distinct-filters")
+    assert resp2.status_code == 200
+    data = resp2.json()
+    assert "cargos" in data
+    assert "orgaos" in data

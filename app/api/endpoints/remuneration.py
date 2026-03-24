@@ -11,7 +11,6 @@ from fastapi_limiter.depends import RateLimiter
 from app.api.deps import get_remuneration_repository
 from app.api.schemas import PaginatedRemuneration
 from app.core.cache import RedisCache, get_cache
-from app.core.config import settings
 from app.persistence.repositories import RemunerationRepository
 
 router = APIRouter()
@@ -63,15 +62,16 @@ async def get_distinct_filters(
     return data
 
 
-# Instância exposta para facilitar overrides em testes.
-# Em modo de teste, usamos um no-op para evitar conflitos de loop do singleton FastAPILimiter.
-async def _no_op_limiter(*args, **kwargs):
-    return None
-
-
-summary_limiter = (
-    _no_op_limiter if settings.app_env == "testing" else RateLimiter(times=30, seconds=60)
-)
+# Dependência nomeada para facilitar overrides em testes.
+# Usamos uma função wrapper para que o override via dependency_overrides funcione corretamente.
+async def summary_limiter(request=None, response=None):
+    """
+    Wrapper de rate-limiting para o endpoint /summary.
+    Em testes, o conftest.py faz o monkeypatch de RateLimiter.__call__,
+    tornando esta dependência um no-op seguro.
+    """
+    limiter = RateLimiter(times=30, seconds=60)
+    await limiter(request=request, response=response)
 
 
 @router.get("/summary", dependencies=[Depends(summary_limiter)])
