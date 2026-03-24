@@ -48,6 +48,8 @@ A coleta e feita por competência mensal (anoExercicio + mesReferencia) usando p
 - httpx - Cliente HTTP assíncrono.
 - Pydantic v2 - Validação de dados e configurações.
 - Docker + Docker Compose - Containerização e orquestração.
+- Supabase Auth - Autenticação baseada em JWT (HS256).
+- PyJWT - Validação de tokens no backend.
 - pytest + coverage.py - Garantia de qualidade e métricas.
 
 ---
@@ -117,7 +119,9 @@ A cobertura atual do projeto e de 86,67%, superando o requisito mínimo de 86%.
 | GET | /api/v1/executions/ | Lista histórico de execuções |
 | GET | /api/v1/executions/{id}/export | Exportação de dados (CSV/XLSX) |
 | GET | /dashboard/ | Interface visual do Dashboard |
-| GET | /health | Verificação de integridade do sistema |
+| GET | /health | Verificação de integridade do sistema (Público) |
+
+> **Nota:** Todos os endpoints sob `/api/v1/` exigem autenticação via header `Authorization: Bearer <JWT_SUPABASE>`.
 
 ---
 

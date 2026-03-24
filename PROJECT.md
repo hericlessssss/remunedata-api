@@ -178,6 +178,7 @@ docker compose down -v
 | 17 — Idempotência de Coleta | Estratégia Clean & Resume para Resiliência | Concluída |
 | 18 — Estabilização Final | Fix de Sessão (Detachment) e Retomada 2024 | Concluída |
 | 18 — Performance & Integridade | Coleta Nitro (Async Batching) e Purge Global | Concluída |
+| 19 — Autenticação | Integração Supabase Auth e Proteção de Rotas | Concluída |
 
 ---
 
@@ -483,4 +484,15 @@ feat(cicd): implementar pipeline de CI/CD, Hardening e Code Polish
 | Timestamps | `DateTime(timezone=True)` | Naive `DateTime` | Compatibilidade com `asyncpg` e melhores práticas |
 | Visualização | `Chart.js` | `D3.js` | Balanço entre facilidade de integração e resultados visuais premium |
 | Dashboard | `FastAPI StaticFiles` | `Next.js` | Dashboard local simples não justifica overhead de framework frontend |
+| Autenticação | `Supabase Auth` (JWT) | `OAuth2 Password` | Facilidade de integração com o ecossistema e fluxo de login social pronto |
+
+---
+
+## Segurança
+
+### Supabase Auth
+A autenticação é feita via Supabase Auth (JWT). 
+- **Backend:** Validação de tokens `HS256` usando o `SUPABASE_JWT_SECRET`.
+- **Dependência:** `get_current_user` em `app/api/deps.py`.
+- **Proteção:** Todos os endpoints sob `/api/v1` exigem o header `Authorization: Bearer <token>`, exceto o `/health` que permanece público.
 

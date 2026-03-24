@@ -28,6 +28,7 @@ dependencies = [
     # Exportação
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",
+    "PyJWT[crypto]>=2.8.0",
 ]
 
 [project.optional-dependencies]

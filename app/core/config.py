@@ -32,6 +32,14 @@ class Settings(BaseSettings):
         description="URL de conexão síncrona (psycopg2) para Alembic migrations",
     )
 
+    # Supabase Auth
+    supabase_url: str = Field(
+        description="URL do projeto Supabase",
+    )
+    supabase_jwt_secret: str = Field(
+        description="Segredo JWT para validação de tokens (HS256)",
+    )
+
     # Redis
     redis_url: str = Field(
         default="redis://localhost:6379/0",
