@@ -261,18 +261,19 @@ async def test_admin_support_chat_flow(
 async def test_admin_repository_direct(db_session):
     """Testa métodos do AdminRepository diretamente para maximizar cobertura."""
     from app.persistence.admin_repository import AdminRepository
+
     repo = AdminRepository(db_session)
-    
+
     # 1. Add message and refresh (cobertura linhas 136-137)
     msg = await repo.add_message("direct-user", "Test Content", is_from_admin=True)
     assert msg.id is not None
     assert msg.is_from_admin is True
     assert msg.is_read is True
-    
+
     # 2. History (cobertura linha 122)
     hist = await repo.get_chat_history("direct-user")
     assert len(hist) == 1
-    
+
     # 3. Stats with partial data
     stats = await repo.get_overall_stats()
     assert isinstance(stats, dict)
