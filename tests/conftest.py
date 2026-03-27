@@ -141,7 +141,7 @@ async def db_session(db_engine):
         await session.execute(
             text(
                 "TRUNCATE execution_annual, execution_monthly, remuneration_collected, "
-                "user_subscription, subscription_plan CASCADE"
+                "user_subscription, subscription_plan, billing_transaction, support_message CASCADE"
             )
         )
         await session.commit()

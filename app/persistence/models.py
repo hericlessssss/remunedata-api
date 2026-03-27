@@ -202,3 +202,47 @@ class UserSubscription(Base):
     )
 
     plan: Mapped["SubscriptionPlan"] = relationship(back_populates="subscriptions")
+    transactions: Mapped[List["BillingTransaction"]] = relationship(
+        back_populates="subscription", cascade="all, delete-orphan"
+    )
+
+
+class BillingTransaction(Base):
+    """
+    Registra cada evento de pagamento confirmado pela AbacatePay.
+    Usado para métricas de faturamento e auditoria financeira.
+    """
+
+    __tablename__ = "billing_transaction"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    subscription_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("user_subscription.id"), nullable=False, index=True
+    )
+    abacatepay_billing_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    amount_brl: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="paid")
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    subscription: Mapped["UserSubscription"] = relationship(back_populates="transactions")
+
+
+class SupportMessage(Base):
+    """
+    Mensagens de suporte trocadas entre usuários e administradores.
+    """
+
+    __tablename__ = "support_message"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_from_admin: Mapped[bool] = mapped_column(default=False)
+    is_read: Mapped[bool] = mapped_column(default=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )

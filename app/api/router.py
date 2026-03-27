@@ -5,7 +5,8 @@ Centralização das rotas da API.
 
 from fastapi import APIRouter
 
-from app.api.endpoints import executions, remuneration, subscriptions
+from app.api.endpoints import admin, executions, remuneration, subscriptions
+from app.core.config import settings
 
 api_router = APIRouter()
 
@@ -21,3 +22,10 @@ api_router.include_router(remuneration.router, prefix="/remuneration", tags=["Re
 
 # Rotas de assinatura (plans: público | checkout+me: JWT | webhook: secret)
 api_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["Subscriptions"])
+
+# Rotas Administrativas — Prefixo secreto e proteção por e-mail
+api_router.include_router(
+    admin.router,
+    prefix=f"/{settings.admin_path_prefix}",
+    tags=["Admin"],
+)

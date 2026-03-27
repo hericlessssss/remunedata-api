@@ -11,6 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token
+from app.core.config import settings
+from app.persistence.admin_repository import AdminRepository
 from app.persistence.models import UserSubscription
 from app.persistence.repositories import ExecutionRepository, RemunerationRepository
 from app.persistence.session import get_session
@@ -30,11 +32,30 @@ def get_remuneration_repository(
     return RemunerationRepository(session)
 
 
+def get_admin_repository(session: AsyncSession = Depends(get_session)) -> AdminRepository:
+    """Dependency for AdminRepository."""
+    return AdminRepository(session)
+
+
 async def get_current_user(token: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """
     Dependência que valida o token JWT do Supabase e retorna o payload do usuário.
     """
     return verify_token(token.credentials)
+
+
+async def get_admin_user(user: dict = Depends(get_current_user)) -> dict:
+    """
+    Dependência que valida se o usuário atual é um administrador.
+    Valida contra o e-mail definido na lista de ADMIN_EMAILS.
+    """
+    email = user.get("email")
+    if not email or email not in settings.admin_emails:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores.",
+        )
+    return user
 
 
 async def require_active_subscription(

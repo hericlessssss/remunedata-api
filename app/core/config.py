@@ -106,6 +106,20 @@ class Settings(BaseSettings):
         description="URL base do frontend (usada nos redirects de pagamento)",
     )
 
+    # Configurações Admin
+    supabase_service_role_key: str = Field(
+        default="",
+        description="Chave secreta para operações administrativas no Supabase",
+    )
+    admin_path_prefix: str = Field(
+        default="admin-secret-dashboard",
+        description="Prefixo da URL para o painel administrativo",
+    )
+    admin_emails: list[str] = Field(
+        default=["admin@remunedata.com.br"],
+        description="Lista de e-mails com permissão de administrador",
+    )
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

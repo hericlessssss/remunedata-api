@@ -14,9 +14,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_session
+from app.api.deps import get_admin_repository, get_current_user, get_session
 from app.core.config import settings
 from app.infra.abacatepay_client import abacatepay_client
+from app.persistence.admin_repository import AdminRepository
 from app.persistence.models import SubscriptionPlan, UserSubscription
 
 logger = logging.getLogger(__name__)
@@ -221,6 +222,31 @@ async def my_subscription(
         plan=sub.plan.name if sub.plan else None,
         expires_at=sub.expires_at,
     )
+
+
+@router.get("/support", summary="Retorna histórico de chat de suporte do usuário")
+async def get_support_history(
+    user: dict = Depends(get_current_user),
+    repo: AdminRepository = Depends(get_admin_repository),
+):
+    """Retorna todas as mensagens de suporte do usuário autenticado."""
+    user_id: str = user.get("sub", "")
+    return await repo.get_chat_history(user_id)
+
+
+@router.post("/support", summary="Envia mensagem para o suporte")
+async def send_support_message(
+    content: str,
+    user: dict = Depends(get_current_user),
+    repo: AdminRepository = Depends(get_admin_repository),
+):
+    """Envia uma nova mensagem para a equipe de suporte."""
+    user_id: str = user.get("sub", "")
+    if not content:
+        raise HTTPException(status_code=400, detail="Conteúdo não pode ser vazio")
+
+    msg = await repo.add_message(user_id=user_id, content=content, is_from_admin=False)
+    return msg
 
 
 @router.post("/webhook", summary="Receptor de webhooks AbacatePay")
