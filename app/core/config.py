@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = Field(
         description="Segredo JWT para validação de tokens (HS256)",
     )
+    supabase_jwks_url: Optional[str] = Field(
+        default=None,
+        description="URL para chaves ES256 (ECC) do Supabase, se usado para validação de tokens",
+    )
 
     # Sentry
     sentry_dsn: Optional[str] = Field(
