@@ -12,10 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_token
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.persistence.admin_repository import AdminRepository
 from app.persistence.models import UserSubscription
 from app.persistence.repositories import ExecutionRepository, RemunerationRepository
 from app.persistence.session import get_session
+
+logger = get_logger(__name__)
 
 security = HTTPBearer()
 
@@ -63,10 +66,18 @@ async def require_active_subscription(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """
-    Dependência que valida se o usuário possui assinatura ativa.
-    Deve ser usada nos endpoints de consulta de remuneração pagos.
+    DependÃªncia que valida se o usuÃ¡rio possui assinatura ativa.
+    ADMINISTRADORES pulam esta verificaÃ§Ã£o e tÃªm acesso total.
     """
+    email = user.get("email")
     user_id: str = user.get("sub", "")
+
+    # 1. Se for administrador, libera direto
+    if email and email in settings.admin_emails:
+        logger.info(f"Acesso ADMINISTRADOR liberado para {email} (Sem checagem de assinatura)")
+        return user
+
+    # 2. UsuÃ¡rio comum: verifica assinatura ativa no banco
     now = datetime.now(timezone.utc)
     stmt = select(UserSubscription).where(
         UserSubscription.user_id == user_id,
@@ -75,9 +86,10 @@ async def require_active_subscription(
     )
     result = await session.execute(stmt)
     sub = result.scalar_one_or_none()
+
     if sub is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Assinatura ativa necessária para acessar este recurso. Assine em /planos.",
+            detail="Assinatura ativa necessÃ¡ria para acessar este recurso. Assine em /planos.",
         )
     return user

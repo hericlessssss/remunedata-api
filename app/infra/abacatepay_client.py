@@ -32,12 +32,26 @@ class AbacatePayClient:
         """Executa um POST autenticado e retorna o campo 'data' da resposta."""
         url = f"{self._base_url}{path}"
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, json=payload, headers=self._headers)
-            response.raise_for_status()
-            body = response.json()
-            if body.get("error"):
-                raise ValueError(f"AbacatePay error: {body['error']}")
-            return body.get("data", body)
+            try:
+                response = await client.post(url, json=payload, headers=self._headers)
+                # Captura corpo antes de raise_for_status se falhar
+                if response.status_code >= 400:
+                    try:
+                        error_body = response.json()
+                        logger.error(
+                            f"DETALHE DO ERRO ABACATEPAY ({response.status_code}): {error_body}"
+                        )
+                    except Exception:
+                        logger.error(f"ERRO ABACATEPAY ({response.status_code}): {response.text}")
+
+                response.raise_for_status()
+                body = response.json()
+                if body.get("error"):
+                    raise ValueError(f"AbacatePay error: {body['error']}")
+                return body.get("data", body)
+            except httpx.HTTPStatusError as e:
+                # Re-levanta para que o endpoint trate
+                raise e
 
     async def _get(self, path: str, params: dict | None = None) -> dict[str, Any]:
         """Executa um GET autenticado e retorna o campo 'data' da resposta."""

@@ -165,13 +165,16 @@ async def create_checkout(
         customer_id: str = customer["id"]
     except Exception as e:
         logger.error(f"Erro ao criar cliente AbacatePay: {e}")
-        raise HTTPException(status_code=502, detail="Erro ao conectar com o gateway de pagamento.")
+        raise HTTPException(
+            status_code=400,
+            detail="Erro ao conectar com o gateway de pagamento ou dados invÃ¡lidos.",
+        )
 
     # Gerar external_id único (user_id + plan + timestamp)
     ts = int(datetime.now(timezone.utc).timestamp())
     external_id = f"remunedata-{user_id[:8]}-{plan.slug}-{ts}"
 
-    # Criar cobrança
+    # Criar cobranÃ§a
     try:
         billing = await abacatepay_client.create_billing(
             customer_id=customer_id,
@@ -182,8 +185,22 @@ async def create_checkout(
             external_id=external_id,
         )
     except Exception as e:
-        logger.error(f"Erro ao criar cobrança AbacatePay: {e}")
-        raise HTTPException(status_code=502, detail="Erro ao gerar cobrança de pagamento.")
+        import httpx
+
+        detail_msg = "Erro ao gerar cobranÃ§a de pagamento."
+        if isinstance(e, httpx.HTTPStatusError):
+            try:
+                error_body = e.response.json()
+                # Tenta extrair a mensagem de erro da API do AbacatePay
+                if isinstance(error_body, dict) and "error" in error_body:
+                    detail_msg = f"Gateway Error: {error_body['error']}"
+                elif isinstance(error_body, list) and len(error_body) > 0:
+                    detail_msg = f"Erro de ValidaÃ§Ã£o: {error_body[0]}"
+            except Exception:
+                pass
+
+        logger.error(f"Falha no checkout AbacatePay: {e}")
+        raise HTTPException(status_code=400, detail=detail_msg)
 
     # Registrar assinatura pendente no banco
     subscription = UserSubscription(

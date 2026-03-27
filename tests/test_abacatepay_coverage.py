@@ -21,6 +21,7 @@ from app.infra.abacatepay_client import AbacatePayClient
 async def test_abacatepay_create_customer_success():
     """create_customer retorna dados do campo 'data' na resposta."""
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "data": {"id": "cust_abc123", "metadata": {"name": "Test User"}},
         "error": None,
@@ -42,6 +43,7 @@ async def test_abacatepay_create_customer_success():
 async def test_abacatepay_create_customer_api_error():
     """create_customer levanta ValueError quando AbacatePay retorna erro."""
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {"data": None, "error": "invalid_tax_id"}
     mock_response.raise_for_status = MagicMock()
 
@@ -60,6 +62,7 @@ async def test_abacatepay_create_customer_api_error():
 async def test_abacatepay_create_billing_success():
     """create_billing retorna id e url da cobrança criada."""
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "data": {
             "id": "bill_xyz456",
@@ -88,6 +91,7 @@ async def test_abacatepay_create_billing_success():
 async def test_abacatepay_get_billing_success():
     """get_billing retorna dados da cobrança pelo ID."""
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "data": {"id": "bill_abc", "status": "PAID"},
         "error": None,
@@ -103,10 +107,12 @@ async def test_abacatepay_get_billing_success():
 @pytest.mark.asyncio
 async def test_abacatepay_http_error_propagates():
     """Cliente propaga HTTPStatusError quando backend retorna erro HTTP."""
+    mock_response = MagicMock()
+    mock_response.status_code = 502
     with patch(
         "httpx.AsyncClient.post",
         new=AsyncMock(
-            side_effect=httpx.HTTPStatusError("Error", request=MagicMock(), response=MagicMock())
+            side_effect=httpx.HTTPStatusError("Error", request=MagicMock(), response=mock_response)
         ),
     ):
         client = AbacatePayClient()
@@ -123,6 +129,7 @@ async def test_abacatepay_http_error_propagates():
 async def test_abacatepay_get_error_propagates():
     """get_billing propaga erro quando AbacatePay retorna error field."""
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {"data": None, "error": "not_found"}
     mock_response.raise_for_status = MagicMock()
 
@@ -314,5 +321,35 @@ async def test_require_active_subscription_passes_with_sub(db_session, override_
     await db_session.commit()
 
     user = {"sub": "user-com-assinatura", "email": "with@sub.com"}
+    result = await require_active_subscription(user=user, session=db_session)
+    assert result == user
+
+
+@pytest.mark.asyncio
+async def test_abacatepay_post_manual_error_field(db_session):
+    """Testa o raise ValueError quando o body tem o campo 'error' e status 200."""
+    from app.infra.abacatepay_client import AbacatePayClient
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"error": "some_manually_returned_error"}
+
+    with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
+        client = AbacatePayClient()
+        with pytest.raises(ValueError, match="AbacatePay error: some_manually_returned_error"):
+            await client.create_customer("A", "B", "C", "D")
+
+
+@pytest.mark.asyncio
+async def test_require_active_subscription_bypass_for_admin(db_session, override_get_session):
+    """require_active_subscription libera acesso total para e-mails na whitelist admin."""
+    from app.api.deps import require_active_subscription
+    from app.core.config import settings
+
+    # 1. Pega um e-mail da lista de admin
+    admin_email = settings.admin_emails[0]
+    user = {"sub": "admin-id", "email": admin_email}
+
+    # 2. Chama sem nem precisar de assinatura no banco
     result = await require_active_subscription(user=user, session=db_session)
     assert result == user

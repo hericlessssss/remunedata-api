@@ -258,7 +258,7 @@ async def test_checkout_abacatepay_error(
             },
             headers=valid_token_headers,
         )
-    assert resp.status_code == 502
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -290,7 +290,7 @@ async def test_checkout_billing_error(
             },
             headers=valid_token_headers,
         )
-    assert resp.status_code == 502
+    assert resp.status_code == 400
 
 
 # ────────────────────────────────────────────────────────
