@@ -3,9 +3,8 @@ app/api/router.py
 Centralização das rotas da API.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from app.api.deps import get_current_user
 from app.api.endpoints import executions, remuneration, subscriptions
 
 api_router = APIRouter()

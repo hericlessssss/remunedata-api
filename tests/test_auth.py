@@ -10,9 +10,9 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
-from app.main import app
 from app.core.auth import ALGORITHM
-from app.core.config import get_settings, settings
+from app.core.config import settings
+from app.main import app
 
 
 @pytest.fixture(autouse=True)
@@ -90,7 +90,8 @@ async def test_protected_route_with_invalid_audience(
 ):
     """Verifica que rotas protegidas retornam 401 com audiência inválida."""
     response = await client.post(
-        "/api/v1/executions/?ano=2025", headers={"Authorization": f"Bearer {invalid_audience_token}"}
+        "/api/v1/executions/?ano=2025",
+        headers={"Authorization": f"Bearer {invalid_audience_token}"},
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert "Audiência do token inválida" in response.json()["detail"]

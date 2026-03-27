@@ -18,7 +18,9 @@ pytestmark = pytest.mark.usefixtures("override_auth")
 
 
 @pytest.mark.asyncio
-async def test_trigger_execution_idempotency_false(client, db_session, override_get_session, override_auth):
+async def test_trigger_execution_idempotency_false(
+    client, db_session, override_get_session, override_auth
+):
     """POST /executions/ com force=False retorna o registro se já estiver rodando."""
     # Criar execução já rodando
     annual = ExecutionAnnual(ano_exercicio=2025, status="running")
@@ -33,7 +35,9 @@ async def test_trigger_execution_idempotency_false(client, db_session, override_
 
 
 @pytest.mark.asyncio
-async def test_trigger_execution_force_true(client, db_session, override_get_session, override_auth):
+async def test_trigger_execution_force_true(
+    client, db_session, override_get_session, override_auth
+):
     """POST /executions/ com force=True reinicia a execução mesmo se já estiver rodando."""
     # Criar execução já rodando
     annual = ExecutionAnnual(ano_exercicio=2025, status="running")

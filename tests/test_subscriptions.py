@@ -13,12 +13,14 @@ from app.persistence.models import SubscriptionPlan, UserSubscription
 
 pytestmark = pytest.mark.usefixtures("override_auth")
 
+
 @pytest.fixture(autouse=True)
 def clear_overrides():
     """Garante que nenhum override global de outros testes interfira nos testes de assinatura real."""
     app.dependency_overrides.clear()
     yield
     app.dependency_overrides.clear()
+
 
 # ────────────────────────────────────────────────────────
 # Fixtures de plano e assinatura
