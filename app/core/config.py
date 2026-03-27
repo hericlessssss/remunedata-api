@@ -4,10 +4,9 @@ Configuração central da aplicação via Pydantic BaseSettings.
 Lê variáveis de ambiente (ou arquivo .env) e valida os valores.
 """
 
-from typing import Optional
-
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Any, Optional, Union
 
 
 class Settings(BaseSettings):
@@ -83,7 +82,8 @@ class Settings(BaseSettings):
     )
 
     # CORS
-    cors_origins: list[str] = Field(
+    # Usamos Union[str, list[str]] para evitar que o Pydantic force parse JSON em envs simples
+    cors_origins: Union[str, list[str]] = Field(
         default=["*"],
         description="Lista de origens permitidas para CORS (ex: ['https://remunedata.com.br'])",
     )
@@ -115,10 +115,28 @@ class Settings(BaseSettings):
         default="admin-secret-dashboard",
         description="Prefixo da URL para o painel administrativo",
     )
-    admin_emails: list[str] = Field(
+    # Usamos Union[str, list[str]] para evitar parse JSON automático do EnvSettingsSource
+    admin_emails: Union[str, list[str]] = Field(
         default=["admin@remunedata.com.br"],
         description="Lista de e-mails com permissão de administrador",
     )
+
+    @field_validator("cors_origins", "admin_emails", mode="before")
+    @classmethod
+    def assemble_list_from_string(cls, v: Any) -> list[str]:
+        """
+        Permite que listas sejam passadas como strings separadas por vírgula em ENVs.
+        Se receber uma string, converte para lista. Se já for lista, mantém.
+        """
+        if isinstance(v, str):
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except:
+                    pass
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
 
     @property
     def is_development(self) -> bool:
