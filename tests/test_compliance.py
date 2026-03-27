@@ -5,7 +5,9 @@ from app.persistence.models import ExecutionAnnual, ExecutionMonthly, Remunerati
 
 
 @pytest.mark.asyncio
-async def test_search_filters_cargo_orgao(client: AsyncClient, db_session, override_get_session):
+async def test_search_filters_cargo_orgao(
+    client: AsyncClient, db_session, override_get_session, valid_token_headers
+):
     """Verifica se os filtros de cargo e órgão funcionam na API."""
     # 1. Criar dados de teste
     execution = ExecutionAnnual(ano_exercicio=2025, status="success")
@@ -46,20 +48,22 @@ async def test_search_filters_cargo_orgao(client: AsyncClient, db_session, overr
     await db_session.commit()
 
     # 2. Testar filtro por cargo
-    resp = await client.get("/api/v1/remuneration/?cargo=ANALISTA")
+    resp = await client.get("/api/v1/remuneration/?cargo=ANALISTA", headers=valid_token_headers)
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
     assert resp.json()["items"][0]["nome_servidor"] == "ALBERTO"
 
     # 3. Testar filtro por órgão
-    resp = await client.get("/api/v1/remuneration/?orgao=SECRETARIA B")
+    resp = await client.get("/api/v1/remuneration/?orgao=SECRETARIA B", headers=valid_token_headers)
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
     assert resp.json()["items"][0]["nome_servidor"] == "MARIA"
 
 
 @pytest.mark.asyncio
-async def test_summary_endpoint(client: AsyncClient, db_session, override_get_session):
+async def test_summary_endpoint(
+    client: AsyncClient, db_session, override_get_session, valid_token_headers
+):
     """Verifica o endpoint de resumo para o dashboard."""
     execution = ExecutionAnnual(ano_exercicio=2025, status="success")
     db_session.add(execution)
@@ -85,7 +89,7 @@ async def test_summary_endpoint(client: AsyncClient, db_session, override_get_se
     db_session.add(r1)
     await db_session.commit()
 
-    resp = await client.get("/api/v1/remuneration/summary?ano=2025")
+    resp = await client.get("/api/v1/remuneration/summary?ano=2025", headers=valid_token_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_servidores"] >= 1
@@ -94,7 +98,9 @@ async def test_summary_endpoint(client: AsyncClient, db_session, override_get_se
 
 
 @pytest.mark.asyncio
-async def test_export_limits_enforced(client: AsyncClient, db_session, override_get_session):
+async def test_export_limits_enforced(
+    client: AsyncClient, db_session, override_get_session, valid_token_headers
+):
     """Verifica se o limite de exportação (1k XLSX, 5k CSV) é respeitado."""
     execution = ExecutionAnnual(ano_exercicio=2025, status="success")
     db_session.add(execution)
@@ -129,7 +135,9 @@ async def test_export_limits_enforced(client: AsyncClient, db_session, override_
     db_session.add_all([r1, r2])
     await db_session.commit()
 
-    resp = await client.get(f"/api/v1/executions/{execution.id}/export?format=csv")
+    resp = await client.get(
+        f"/api/v1/executions/{execution.id}/export?format=csv", headers=valid_token_headers
+    )
     assert resp.status_code == 200
     content = resp.read().decode()
     lines = [line for line in content.split("\n") if line.strip()]

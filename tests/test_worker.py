@@ -36,7 +36,9 @@ def test_collect_annual_task_call(db_session):
 
 
 @pytest.mark.asyncio
-async def test_api_trigger_collection_queues_task(db_session, override_get_session):
+async def test_api_trigger_collection_queues_task(
+    db_session, override_get_session, valid_token_headers
+):
     """
     Testa se o endpoint da API enfileira a tarefa corretamente.
     """
@@ -54,7 +56,9 @@ async def test_api_trigger_collection_queues_task(db_session, override_get_sessi
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # Patch na origem
         with patch("app.workers.tasks.collect_annual_task.delay") as mock_delay:
-            response = await ac.post(f"/api/v1/executions/?ano={test_year}")
+            response = await ac.post(
+                f"/api/v1/executions/?ano={test_year}", headers=valid_token_headers
+            )
 
             assert response.status_code == 201
             data = response.json()

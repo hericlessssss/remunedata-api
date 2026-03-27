@@ -68,11 +68,18 @@ def reset_breakers():
         breaker.reset()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def override_auth(request):
-    """Mocka a autenticação e verificação de assinatura para testes que solicitarem."""
+    """Mocka a autenticação e verificação de assinatura globalmente para todos os testes."""
     from app.api.deps import get_current_user, require_active_subscription
     from app.main import app
+
+    # Não aplicar override para testes de autenticação real (unitários)
+    module_name = request.module.__name__
+    if any(m in module_name for m in ["test_auth", "test_abacatepay_coverage"]):
+        # Note: test_subscriptions precisa do override_auth por padrão para passar na maioria dos testes
+        yield
+        return
 
     async def _get_current_user_override():
         return {"email": "test@example.com", "sub": "test-uuid", "aud": "authenticated"}

@@ -11,14 +11,18 @@ from app.persistence.models import ExecutionAnnual, ExecutionMonthly, Remunerati
 
 
 @pytest.mark.asyncio
-async def test_trigger_collection_idempotency(db_session, client, override_get_session):
+async def test_trigger_collection_idempotency(
+    db_session, client, override_get_session, valid_token_headers
+):
     """Testa se o trigger retorna a execução atual se já estiver rodando."""
     # Criar execução já rodando
     annual = ExecutionAnnual(ano_exercicio=2024, status="running")
     db_session.add(annual)
     await db_session.commit()
 
-    response = await client.post("/api/v1/executions/?ano=2024&force=false")
+    response = await client.post(
+        "/api/v1/executions/?ano=2024&force=false", headers=valid_token_headers
+    )
 
     assert response.status_code == 201
     assert response.json()["status"] == "running"
@@ -32,10 +36,14 @@ async def test_get_execution_404(client, override_get_session):
 
 
 @pytest.mark.asyncio
-async def test_retry_execution_month_api_cases(db_session, client, override_get_session):
+async def test_retry_execution_month_api_cases(
+    db_session, client, override_get_session, valid_token_headers
+):
     """Testa sucesso e erro no endpoint de retry month."""
     # 1. 404 Case
-    response = await client.post("/api/v1/executions/99999/retry-month?mes=06")
+    response = await client.post(
+        "/api/v1/executions/99999/retry-month?mes=06", headers=valid_token_headers
+    )
     assert response.status_code == 404
 
     # 2. Success Case
@@ -45,13 +53,17 @@ async def test_retry_execution_month_api_cases(db_session, client, override_get_
     await db_session.refresh(annual)
 
     with patch("app.workers.tasks.retry_monthly_task.delay") as mock_delay:
-        response = await client.post(f"/api/v1/executions/{annual.id}/retry-month?mes=06")
+        response = await client.post(
+            f"/api/v1/executions/{annual.id}/retry-month?mes=06", headers=valid_token_headers
+        )
         assert response.status_code == 200
         mock_delay.assert_called_once_with(annual.id, "06")
 
 
 @pytest.mark.asyncio
-async def test_export_execution_logic(db_session, client, override_get_session):
+async def test_export_execution_logic(
+    db_session, client, override_get_session, valid_token_headers
+):
     """Testa a lógica de exportação e erro 404."""
     annual = ExecutionAnnual(ano_exercicio=2024, status="success")
     db_session.add(annual)
@@ -65,7 +77,9 @@ async def test_export_execution_logic(db_session, client, override_get_session):
     await db_session.refresh(monthly)
 
     # Erro 404 (sem registros)
-    response = await client.get(f"/api/v1/executions/{annual.id}/export?format=csv")
+    response = await client.get(
+        f"/api/v1/executions/{annual.id}/export?format=csv", headers=valid_token_headers
+    )
     assert response.status_code == 404
 
     # Com registros
@@ -85,11 +99,15 @@ async def test_export_execution_logic(db_session, client, override_get_session):
     await db_session.commit()
 
     # Formato CSV
-    resp_csv = await client.get(f"/api/v1/executions/{annual.id}/export?format=csv")
+    resp_csv = await client.get(
+        f"/api/v1/executions/{annual.id}/export?format=csv", headers=valid_token_headers
+    )
     assert resp_csv.status_code == 200
 
     # Formato XLSX
-    resp_xlsx = await client.get(f"/api/v1/executions/{annual.id}/export?format=xlsx")
+    resp_xlsx = await client.get(
+        f"/api/v1/executions/{annual.id}/export?format=xlsx", headers=valid_token_headers
+    )
     assert resp_xlsx.status_code == 200
 
 

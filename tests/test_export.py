@@ -12,7 +12,7 @@ from app.persistence.models import ExecutionAnnual, ExecutionMonthly, Remunerati
 
 @pytest.mark.asyncio
 async def test_export_execution_csv(
-    client: AsyncClient, db_session: AsyncSession, override_get_session
+    client: AsyncClient, db_session: AsyncSession, override_get_session, valid_token_headers
 ):
     # 1. Criar dados de teste
     annual = ExecutionAnnual(ano_exercicio=2025, status="success")
@@ -41,7 +41,9 @@ async def test_export_execution_csv(
     await db_session.commit()
 
     # 2. Chamar endpoint de exportação
-    response = await client.get(f"/api/v1/executions/{annual.id}/export?format=csv")
+    response = await client.get(
+        f"/api/v1/executions/{annual.id}/export?format=csv", headers=valid_token_headers
+    )
 
     # 3. Asserções
     assert response.status_code == 200
@@ -56,7 +58,7 @@ async def test_export_execution_csv(
 
 @pytest.mark.asyncio
 async def test_export_execution_xlsx(
-    client: AsyncClient, db_session: AsyncSession, override_get_session
+    client: AsyncClient, db_session: AsyncSession, override_get_session, valid_token_headers
 ):
     # 1. Reusar estrutura ou criar nova
     annual = ExecutionAnnual(ano_exercicio=2024, status="success")
@@ -85,7 +87,9 @@ async def test_export_execution_xlsx(
     await db_session.commit()
 
     # 2. Chamar endpoint
-    response = await client.get(f"/api/v1/executions/{annual.id}/export?format=xlsx")
+    response = await client.get(
+        f"/api/v1/executions/{annual.id}/export?format=xlsx", headers=valid_token_headers
+    )
 
     # 3. Asserções
     assert response.status_code == 200
@@ -100,7 +104,7 @@ async def test_export_execution_xlsx(
 
 
 @pytest.mark.asyncio
-async def test_export_not_found(client: AsyncClient, override_get_session):
-    response = await client.get("/api/v1/executions/99999/export")
+async def test_export_not_found(client: AsyncClient, override_get_session, valid_token_headers):
+    response = await client.get("/api/v1/executions/99999/export", headers=valid_token_headers)
     assert response.status_code == 404
     assert response.json()["detail"] == "Execução não encontrada"
