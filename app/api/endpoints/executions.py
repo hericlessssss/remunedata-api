@@ -10,7 +10,11 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import get_execution_repository, get_remuneration_repository
+from app.api.deps import (
+    get_execution_repository,
+    get_remuneration_repository,
+    require_active_subscription,
+)
 from app.api.schemas import ExecutionAnnualDetail, ExecutionAnnualRead
 from app.persistence.repositories import ExecutionRepository, RemunerationRepository
 from app.workers.tasks import collect_annual_task
@@ -23,6 +27,7 @@ async def trigger_collection(
     ano: int = Query(..., ge=2000, le=2100),
     force: bool = Query(False, description="Forçar reinicialização se já estiver rodando"),
     repo: ExecutionRepository = Depends(get_execution_repository),
+    user: dict = Depends(require_active_subscription),
 ):
     """Dispara uma nova coleta anual em background."""
     # 1. Criar registro inicial no banco
@@ -48,15 +53,16 @@ async def list_executions(
     limit: int = Query(20, ge=1, le=100),
     repo: ExecutionRepository = Depends(get_execution_repository),
 ):
-    """Lista as últimas execuções anuais do sistema."""
+    """Lista as últimas execuções anuais do sistema. Endpoint público."""
     return await repo.list_annual(limit=limit, offset=skip)
 
 
 @router.get("/{execution_id}", response_model=ExecutionAnnualDetail)
 async def get_execution(
-    execution_id: int, repo: ExecutionRepository = Depends(get_execution_repository)
+    execution_id: int,
+    repo: ExecutionRepository = Depends(get_execution_repository),
 ):
-    """Retorna detalhes de uma execução anual específica, incluindo meses."""
+    """Retorna detalhes de uma execução anual específica, incluindo meses. Endpoint público."""
     record = await repo.get_annual(execution_id)
     if not record:
         raise HTTPException(status_code=404, detail="Execução não encontrada")
@@ -68,6 +74,7 @@ async def retry_execution_month(
     execution_id: int,
     mes: str = Query(..., pattern="^(0[1-9]|1[0-2])$"),
     repo: ExecutionRepository = Depends(get_execution_repository),
+    user: dict = Depends(require_active_subscription),
 ):
     """Re-dispara a coleta para um mês específico de uma execução anual."""
     record = await repo.get_annual(execution_id)
@@ -88,6 +95,7 @@ async def export_execution(
     format: str = Query("csv", pattern="^(csv|xlsx)$"),
     repo: ExecutionRepository = Depends(get_execution_repository),
     remu_repo: RemunerationRepository = Depends(get_remuneration_repository),
+    user: dict = Depends(require_active_subscription),
 ):
     """
     Exporta os dados da execução anual em formato CSV ou XLSX.

@@ -36,17 +36,17 @@ def verify_token(token: str) -> Dict[str, Any]:
             detail="Token expirado",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.InvalidAudienceError:
-        logger.warning(f"Token com audiência inválida. Detalhes: {str(jwt.InvalidAudienceError)}")
+    except jwt.InvalidAudienceError as e:
+        logger.warning(f"Token com audiência inválida: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Audiência do token inválida",
+            detail=f"Audiência do token inválida: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except jwt.PyJWTError as e:
-        logger.error(f"Erro ao validar token: {str(e)}")
+        logger.error(f"Erro ao validar token (assinatura/segredo): {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido",
+            detail=f"Token inválido (segredo ou formato): {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )

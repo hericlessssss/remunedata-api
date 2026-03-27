@@ -10,8 +10,17 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from app.main import app
 from app.core.auth import ALGORITHM
-from app.core.config import settings
+from app.core.config import get_settings, settings
+
+
+@pytest.fixture(autouse=True)
+def clear_overrides():
+    """Garante que nenhum override global de outros testes interfira nos testes de auth real."""
+    app.dependency_overrides.clear()
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -51,15 +60,16 @@ def invalid_audience_token():
 @pytest.mark.asyncio
 async def test_protected_route_without_token(client: AsyncClient):
     """Verifica que rotas protegidas retornam 401 sem token."""
-    response = await client.get("/api/v1/executions/")
+    # Usamos POST que exige assinatura ativa (e portanto login)
+    response = await client.post("/api/v1/executions/?ano=2025")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.asyncio
 async def test_protected_route_with_invalid_token(client: AsyncClient):
     """Verifica que rotas protegidas retornam 401 com token inválido."""
-    response = await client.get(
-        "/api/v1/executions/", headers={"Authorization": "Bearer invalid_token"}
+    response = await client.post(
+        "/api/v1/executions/?ano=2025", headers={"Authorization": "Bearer invalid_token"}
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -67,8 +77,8 @@ async def test_protected_route_with_invalid_token(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_protected_route_with_expired_token(client: AsyncClient, expired_token: str):
     """Verifica que rotas protegidas retornam 401 com token expirado."""
-    response = await client.get(
-        "/api/v1/executions/", headers={"Authorization": f"Bearer {expired_token}"}
+    response = await client.post(
+        "/api/v1/executions/?ano=2025", headers={"Authorization": f"Bearer {expired_token}"}
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Token expirado"
@@ -79,11 +89,11 @@ async def test_protected_route_with_invalid_audience(
     client: AsyncClient, invalid_audience_token: str
 ):
     """Verifica que rotas protegidas retornam 401 com audiência inválida."""
-    response = await client.get(
-        "/api/v1/executions/", headers={"Authorization": f"Bearer {invalid_audience_token}"}
+    response = await client.post(
+        "/api/v1/executions/?ano=2025", headers={"Authorization": f"Bearer {invalid_audience_token}"}
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["detail"] == "Audiência do token inválida"
+    assert "Audiência do token inválida" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

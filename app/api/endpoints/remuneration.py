@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from fastapi_limiter.depends import RateLimiter
 
-from app.api.deps import get_remuneration_repository
+from app.api.deps import get_remuneration_repository, require_active_subscription
 from app.api.schemas import PaginatedRemuneration
 from app.core.cache import RedisCache, get_cache
 from app.persistence.repositories import RemunerationRepository
@@ -31,6 +31,7 @@ async def search_remuneration(
     page: int = Query(1, ge=1),
     size: int = Query(25, ge=1, le=200),
     repo: RemunerationRepository = Depends(get_remuneration_repository),
+    user: dict = Depends(require_active_subscription),
 ):
     """Busca registros de remuneração com filtros e paginação."""
     offset = (page - 1) * size

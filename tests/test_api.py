@@ -10,9 +10,11 @@ from app.main import app
 from app.persistence.models import RemunerationCollected
 from app.persistence.repositories import ExecutionRepository, RemunerationRepository
 
+pytestmark = pytest.mark.usefixtures("override_auth")
+
 
 @pytest.mark.asyncio
-async def test_api_list_executions(db_session, override_get_session, client):
+async def test_api_list_executions(db_session, override_get_session, override_auth, client):
     repo = ExecutionRepository(db_session)
     # Usar um ano bem específico para evitar colisão com outros testes
     test_year = 2099
@@ -30,7 +32,7 @@ async def test_api_list_executions(db_session, override_get_session, client):
 
 
 @pytest.mark.asyncio
-async def test_api_search_remuneration(db_session, override_get_session, client):
+async def test_api_search_remuneration(db_session, override_get_session, override_auth, client):
     repo_exec = ExecutionRepository(db_session)
     repo_rem = RemunerationRepository(db_session)
 
@@ -66,7 +68,7 @@ async def test_api_search_remuneration(db_session, override_get_session, client)
 
 
 @pytest.mark.asyncio
-async def test_api_execution_not_found(override_get_session, client):
+async def test_api_execution_not_found(override_get_session, override_auth, client):
     response = await client.get("/api/v1/executions/999999")
     assert response.status_code == 404
 

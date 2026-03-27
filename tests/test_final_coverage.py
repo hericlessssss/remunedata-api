@@ -10,13 +10,15 @@ import pytest
 
 from app.persistence.models import ExecutionAnnual, RemunerationCollected
 
+pytestmark = pytest.mark.usefixtures("override_auth")
+
 # ────────────────────────────────────────────────────────
 # Testes de Executions (app/api/endpoints/executions.py)
 # ────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_trigger_execution_idempotency_false(client, db_session, override_get_session):
+async def test_trigger_execution_idempotency_false(client, db_session, override_get_session, override_auth):
     """POST /executions/ com force=False retorna o registro se já estiver rodando."""
     # Criar execução já rodando
     annual = ExecutionAnnual(ano_exercicio=2025, status="running")
@@ -31,7 +33,7 @@ async def test_trigger_execution_idempotency_false(client, db_session, override_
 
 
 @pytest.mark.asyncio
-async def test_trigger_execution_force_true(client, db_session, override_get_session):
+async def test_trigger_execution_force_true(client, db_session, override_get_session, override_auth):
     """POST /executions/ com force=True reinicia a execução mesmo se já estiver rodando."""
     # Criar execução já rodando
     annual = ExecutionAnnual(ano_exercicio=2025, status="running")
@@ -46,7 +48,7 @@ async def test_trigger_execution_force_true(client, db_session, override_get_ses
 
 
 @pytest.mark.asyncio
-async def test_get_execution_not_found(client, override_get_session):
+async def test_get_execution_not_found(client, override_get_session, override_auth):
     """GET /executions/{id} retorna 404 para ID inexistente."""
     response = await client.get("/api/v1/executions/99999")
     assert response.status_code == 404
@@ -54,21 +56,21 @@ async def test_get_execution_not_found(client, override_get_session):
 
 
 @pytest.mark.asyncio
-async def test_retry_month_not_found(client, override_get_session):
+async def test_retry_month_not_found(client, override_get_session, override_auth):
     """POST /executions/{id}/retry-month retorna 404 para ID inexistente."""
     response = await client.post("/api/v1/executions/99999/retry-month?mes=01")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_export_execution_not_found(client, override_get_session):
+async def test_export_execution_not_found(client, override_get_session, override_auth):
     """GET /executions/{id}/export retorna 404 para ID inexistente."""
     response = await client.get("/api/v1/executions/99999/export")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_export_execution_empty(client, db_session, override_get_session):
+async def test_export_execution_empty(client, db_session, override_get_session, override_auth):
     """GET /executions/{id}/export retorna 404 se não houver registros coletados."""
     annual = ExecutionAnnual(ano_exercicio=2024, status="completed")
     db_session.add(annual)
@@ -80,7 +82,7 @@ async def test_export_execution_empty(client, db_session, override_get_session):
 
 
 @pytest.mark.asyncio
-async def test_export_xlsx_success(client, db_session, override_get_session):
+async def test_export_xlsx_success(client, db_session, override_get_session, override_auth):
     """GET /executions/{id}/export?format=xlsx gera arquivo Excel válido."""
     from app.persistence.models import ExecutionMonthly
 
@@ -119,7 +121,7 @@ async def test_export_xlsx_success(client, db_session, override_get_session):
 
 
 @pytest.mark.asyncio
-async def test_export_csv_success(client, db_session, override_get_session):
+async def test_export_csv_success(client, db_session, override_get_session, override_auth):
     """GET /executions/{id}/export?format=csv gera arquivo CSV válido."""
     from app.persistence.models import ExecutionMonthly
 

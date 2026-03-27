@@ -68,22 +68,23 @@ def reset_breakers():
         breaker.reset()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def override_auth(request):
-    """Mocka a autenticação globalmente para todos os testes."""
-    from app.api.deps import get_current_user
+    """Mocka a autenticação e verificação de assinatura para testes que solicitarem."""
+    from app.api.deps import get_current_user, require_active_subscription
     from app.main import app
-
-    if "test_auth.py" in request.node.fspath.strpath:
-        yield
-        return
 
     async def _get_current_user_override():
         return {"email": "test@example.com", "sub": "test-uuid", "aud": "authenticated"}
 
+    async def _require_active_subscription_override():
+        return {"email": "test@example.com", "sub": "test-uuid", "aud": "authenticated"}
+
     app.dependency_overrides[get_current_user] = _get_current_user_override
+    app.dependency_overrides[require_active_subscription] = _require_active_subscription_override
     yield
     app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(require_active_subscription, None)
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -10,12 +10,11 @@ from app.api.endpoints import executions, remuneration, subscriptions
 
 api_router = APIRouter()
 
-# Rotas protegidas de gestão interna
+# Rotas de execuções (proteção individual por endpoint)
 api_router.include_router(
     executions.router,
     prefix="/executions",
     tags=["Executions"],
-    dependencies=[Depends(get_current_user)],
 )
 
 # Rotas de remuneração — busca exige assinatura ativa, summary é público
