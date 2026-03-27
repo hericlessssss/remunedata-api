@@ -4,9 +4,11 @@ Configuração central da aplicação via Pydantic BaseSettings.
 Lê variáveis de ambiente (ou arquivo .env) e valida os valores.
 """
 
+import json
+from typing import Any, Optional, Union
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Any, Optional, Union
 
 
 class Settings(BaseSettings):
@@ -82,7 +84,6 @@ class Settings(BaseSettings):
     )
 
     # CORS
-    # Usamos Union[str, list[str]] para evitar que o Pydantic force parse JSON em envs simples
     cors_origins: Union[str, list[str]] = Field(
         default=["*"],
         description="Lista de origens permitidas para CORS (ex: ['https://remunedata.com.br'])",
@@ -115,7 +116,6 @@ class Settings(BaseSettings):
         default="admin-secret-dashboard",
         description="Prefixo da URL para o painel administrativo",
     )
-    # Usamos Union[str, list[str]] para evitar parse JSON automático do EnvSettingsSource
     admin_emails: Union[str, list[str]] = Field(
         default=["admin@remunedata.com.br"],
         description="Lista de e-mails com permissão de administrador",
@@ -130,10 +130,9 @@ class Settings(BaseSettings):
         """
         if isinstance(v, str):
             if v.startswith("[") and v.endswith("]"):
-                import json
                 try:
                     return json.loads(v)
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     pass
             return [i.strip() for i in v.split(",") if i.strip()]
         return v

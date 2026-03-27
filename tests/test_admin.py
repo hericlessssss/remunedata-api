@@ -3,6 +3,8 @@ tests/test_admin.py
 Testes para o painel administrativo: segurança, métricas e suporte.
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi import status
 
@@ -111,6 +113,103 @@ async def test_admin_list_users(
 
 
 @pytest.mark.asyncio
+async def test_admin_list_users_pagination(
+    client, admin_user_override, db_session, override_get_session, valid_token_headers
+):
+    """Testa paginação na listagem de usuários admin."""
+    plan = SubscriptionPlan(
+        slug="test-p", name="Test P", description="Test", price_brl=10.0, duration_days=30
+    )
+    db_session.add(plan)
+    await db_session.commit()
+
+    # Criar 3 usuários
+    for i in range(3):
+        sub = UserSubscription(user_id=f"user-{i}", plan_id=plan.id, status="active")
+        db_session.add(sub)
+    await db_session.commit()
+
+    prefix = settings.admin_path_prefix
+    # Pega apenas 1
+    resp = await client.get(
+        f"/api/v1/{prefix}/users", params={"limit": 1, "offset": 1}, headers=valid_token_headers
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_admin_support_chats_mixed(
+    client, admin_user_override, db_session, override_get_session, valid_token_headers
+):
+    """Testa listagem de chats com mensagens de admin e usuário intercaladas."""
+    user_id = "mixed-user"
+    prefix = settings.admin_path_prefix
+
+    # Mensagem do usuário
+    msg1 = SupportMessage(user_id=user_id, content="User msg", is_from_admin=False)
+    db_session.add(msg1)
+    await db_session.commit()
+
+    # Resposta do admin
+    msg2 = SupportMessage(user_id=user_id, content="Admin msg", is_from_admin=True, is_read=True)
+    db_session.add(msg2)
+    await db_session.commit()
+
+    resp = await client.get(f"/api/v1/{prefix}/support", headers=valid_token_headers)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+    assert resp.json()[0]["is_from_admin"] is True
+
+
+@pytest.mark.asyncio
+async def test_admin_stats_advanced(
+    client, admin_user_override, db_session, override_get_session, valid_token_headers
+):
+    """Testa faturamento em períodos diferentes e usuários sem plano (cobertura or 0.0)."""
+    prefix = settings.admin_path_prefix
+
+    # 0. Criar Plano (com ID fixo ou serial)
+    plan = SubscriptionPlan(
+        slug="adv-p", name="Adv P", description="Test", price_brl=10.0, duration_days=30
+    )
+    db_session.add(plan)
+    await db_session.commit()
+    await db_session.refresh(plan)
+
+    # 1. Usuário com assinatura ativa
+    sub_main = UserSubscription(user_id="main-user", plan_id=plan.id, status="active")
+    db_session.add(sub_main)
+    await db_session.commit()
+    await db_session.refresh(sub_main)
+
+    # 2. Usuário sem assinatura ativa
+    sub_pending = UserSubscription(user_id="pending-user", plan_id=plan.id, status="pending")
+    db_session.add(sub_pending)
+
+    # 3. Faturamento mês passado
+    last_month = datetime.now() - timedelta(days=32)
+    tx_old = BillingTransaction(
+        subscription_id=sub_main.id,
+        abacatepay_billing_id="old-bill",
+        amount_brl=50.0,
+        status="paid",
+        created_at=last_month,
+    )
+    db_session.add(tx_old)
+    await db_session.commit()
+
+    # 4. Forçar refresh na sessão para o repo ver os dados
+    resp = await client.get(f"/api/v1/{prefix}/stats", headers=valid_token_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    # Faturamento total deve ser 50, mas mensal deve ser 0 (pois tx_old é de 32 dias atrás)
+    assert data["total_revenue"] == 50.0
+    assert data["monthly_revenue"] == 0.0
+    assert data["active_subscriptions"] == 1  # sub_main está ativo
+
+
+@pytest.mark.asyncio
 async def test_admin_support_chat_flow(
     client, admin_user_override, db_session, override_get_session, valid_token_headers
 ):
@@ -143,3 +242,69 @@ async def test_admin_support_chat_flow(
     )
     assert resp.status_code == 200
     assert resp.json()["is_from_admin"] is True
+
+    # 5. Testar histórico de chat (cobertura)
+    resp = await client.get(f"/api/v1/{prefix}/support/{user_id}", headers=valid_token_headers)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 2
+
+    # 6. Testar resposta vazia (400 Bad Request)
+    resp = await client.post(
+        f"/api/v1/{prefix}/support/{user_id}/reply",
+        params={"content": ""},
+        headers=valid_token_headers,
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_admin_repository_direct(db_session):
+    """Testa métodos do AdminRepository diretamente para maximizar cobertura."""
+    from app.persistence.admin_repository import AdminRepository
+    repo = AdminRepository(db_session)
+    
+    # 1. Add message and refresh (cobertura linhas 136-137)
+    msg = await repo.add_message("direct-user", "Test Content", is_from_admin=True)
+    assert msg.id is not None
+    assert msg.is_from_admin is True
+    assert msg.is_read is True
+    
+    # 2. History (cobertura linha 122)
+    hist = await repo.get_chat_history("direct-user")
+    assert len(hist) == 1
+    
+    # 3. Stats with partial data
+    stats = await repo.get_overall_stats()
+    assert isinstance(stats, dict)
+    assert "total_revenue" in stats
+
+
+@pytest.mark.asyncio
+async def test_admin_reset_password_failure(
+    client, admin_user_override, valid_token_headers, respx_mock
+):
+    """Testa falha ao disparar reset de senha no Supabase."""
+    prefix = settings.admin_path_prefix
+    # Mock falha no Supabase
+    respx_mock.post(f"{settings.supabase_url}/auth/v1/recover").respond(status_code=500)
+
+    resp = await client.post(
+        f"/api/v1/{prefix}/users/user-123/reset-password",
+        params={"email": "fail@example.com"},
+        headers=valid_token_headers,
+    )
+    assert resp.status_code == 502
+    assert "Erro ao disparar recuperação" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_stats_empty_db(
+    client, admin_user_override, db_session, override_get_session, valid_token_headers
+):
+    """Testa stats com banco vazio (cobertura or 0.0)."""
+    prefix = settings.admin_path_prefix
+    resp = await client.get(f"/api/v1/{prefix}/stats", headers=valid_token_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_revenue"] == 0.0
+    assert data["active_subscriptions"] == 0
